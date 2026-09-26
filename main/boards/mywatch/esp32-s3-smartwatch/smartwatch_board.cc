@@ -1,5 +1,5 @@
 #include "wifi_board.h"
-#include "display/lcd_display.h"
+#include "watch_display.h"
 #include "esp_lcd_sh8601.h"
 
 #include "codecs/box_audio_codec.h"
@@ -73,51 +73,6 @@ static const sh8601_lcd_init_cmd_t vendor_specific_init[] = {
     {0x51, (uint8_t []){0xFF}, 1, 0},
 };
 
-// 在waveshare_amoled_2_06类之前添加新的显示类
-class SmartwatchLcdDisplay : public SpiLcdDisplay {
-public:
-    static void rounder_event_cb(lv_event_t* e) {
-        lv_area_t* area = (lv_area_t* )lv_event_get_param(e);
-        uint16_t x1 = area->x1;
-        uint16_t x2 = area->x2;
-
-        uint16_t y1 = area->y1;
-        uint16_t y2 = area->y2;
-
-        // round the start of coordinate down to the nearest 2M number
-        area->x1 = (x1 >> 1) << 1;
-        area->y1 = (y1 >> 1) << 1;
-        // round the end of coordinate up to the nearest 2N+1 number
-        area->x2 = ((x2 >> 1) << 1) + 1;
-        area->y2 = ((y2 >> 1) << 1) + 1;
-    }
-
-    SmartwatchLcdDisplay(esp_lcd_panel_io_handle_t io_handle,
-                     esp_lcd_panel_handle_t panel_handle,
-                     int width,
-                     int height,
-                     int offset_x,
-                     int offset_y,
-                     bool mirror_x,
-                     bool mirror_y,
-                     bool swap_xy)
-        : SpiLcdDisplay(io_handle, panel_handle,
-                        width, height, offset_x, offset_y, mirror_x, mirror_y, swap_xy) {
-        // Note: UI customization should be done in SetupUI(), not in constructor
-        // to ensure lvgl objects are created before accessing them
-    }
-
-    virtual void SetupUI() override {
-        // Call parent SetupUI() first to create all lvgl objects
-        SpiLcdDisplay::SetupUI();
-
-        DisplayLockGuard lock(this);
-        lv_obj_set_style_pad_left(status_bar_, LV_HOR_RES*  0.1, 0);
-        lv_obj_set_style_pad_right(status_bar_, LV_HOR_RES*  0.1, 0);
-        lv_display_add_event_cb(display_, rounder_event_cb, LV_EVENT_INVALIDATE_AREA, NULL);
-    }
-};
-
 class CustomBacklight : public Backlight {
 public:
     CustomBacklight(esp_lcd_panel_io_handle_t panel_io) : Backlight(), panel_io_(panel_io) {}
@@ -142,7 +97,7 @@ private:
     i2c_master_bus_handle_t i2c_bus_;
     Pmic* pmic_ = nullptr;
     Button boot_button_;
-    SmartwatchLcdDisplay* display_;
+    WatchDisplay* display_;
     CustomBacklight* backlight_;
     PowerSaveTimer* power_save_timer_;
 
@@ -248,8 +203,9 @@ private:
         esp_lcd_panel_invert_color(panel, false);
         esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
         esp_lcd_panel_disp_on_off(panel, true);
-        display_ = new SmartwatchLcdDisplay(panel_io, panel,
-                                        DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
+        display_ = new WatchDisplay(panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT,
+                                    DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X,
+                                    DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
         backlight_ = new CustomBacklight(panel_io);
         backlight_->RestoreBrightness();
     }
