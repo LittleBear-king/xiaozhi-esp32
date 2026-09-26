@@ -290,6 +290,15 @@ void Application::HandleNetworkConnectedEvent() {
     ESP_LOGI(TAG, "Network connected");
     auto state = GetDeviceState();
 
+    // Wi-Fi can finish connecting while the user is running the provisioning audio test.
+    // Stop the test first so the connected event can continue through the normal activation path.
+    if (state == kDeviceStateAudioTesting) {
+        audio_service_.EnableAudioTesting(false);
+        if (SetDeviceState(kDeviceStateWifiConfiguring)) {
+            state = kDeviceStateWifiConfiguring;
+        }
+    }
+
     if (state == kDeviceStateStarting || state == kDeviceStateWifiConfiguring) {
         // Network is ready, start activation
         SetDeviceState(kDeviceStateActivating);
