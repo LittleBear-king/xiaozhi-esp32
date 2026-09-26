@@ -19,7 +19,7 @@ directory without changing the upstream Waveshare board identity.
 - Application remains the product state machine. Idle state shows the watch
   face; listening, speaking, network, error, and notification states use the
   existing assistant UI.
-- The round AI button posts Application::StartListening(). Audio capture,
+- The round AI button posts Application::ToggleChatState(). Audio capture,
   protocol transport, wake-word detection, and playback continue to use the
   upstream Xiaozhi services.
 

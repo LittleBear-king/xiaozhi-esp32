@@ -49,7 +49,7 @@ void WatchDisplay::ClockTimerCallback(lv_timer_t* timer) {
 void WatchDisplay::AssistantButtonCallback(lv_event_t* event) {
     auto* display = static_cast<WatchDisplay*>(lv_event_get_user_data(event));
     display->ApplyWatchFaceVisibility(false);
-    Application::GetInstance().StartListening();
+    Application::GetInstance().ToggleChatState();
 }
 
 void WatchDisplay::CreateWatchFace() {
