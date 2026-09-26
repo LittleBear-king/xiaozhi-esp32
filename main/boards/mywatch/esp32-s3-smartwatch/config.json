@@ -1,0 +1,15 @@
+{
+    "manufacturer": "mywatch",
+    "type": "esp32-s3-smartwatch",
+    "target": "esp32s3",
+    "builds": [
+        {
+            "name": "esp32-s3-smartwatch",
+            "sdkconfig_append": [
+                "CONFIG_USE_WECHAT_MESSAGE_STYLE=n",
+                "CONFIG_BOARD_TYPE_MYWATCH_ESP32_S3_SMARTWATCH=y",
+                "CONFIG_USE_DEVICE_AEC=y"
+            ]
+        }
+    ]
+}
