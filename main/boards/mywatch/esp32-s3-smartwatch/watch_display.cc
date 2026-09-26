@@ -2,28 +2,19 @@
 
 #include "application.h"
 #include "assets/lang_config.h"
+#include "watch_face.h"
 
 #include <cstring>
-#include <ctime>
 
-LV_FONT_DECLARE(BUILTIN_TEXT_FONT);
-
-WatchDisplay::WatchDisplay(esp_lcd_panel_io_handle_t io_handle,
-                           esp_lcd_panel_handle_t panel_handle, int width, int height,
-                           int offset_x, int offset_y, bool mirror_x, bool mirror_y, bool swap_xy)
-    : SpiLcdDisplay(io_handle, panel_handle, width, height, offset_x, offset_y, mirror_x,
-                    mirror_y, swap_xy) {}
+WatchDisplay::WatchDisplay(esp_lcd_panel_io_handle_t io_handle, esp_lcd_panel_handle_t panel_handle,
+                           int width, int height, int offset_x, int offset_y, bool mirror_x,
+                           bool mirror_y, bool swap_xy)
+    : SpiLcdDisplay(io_handle, panel_handle, width, height, offset_x, offset_y, mirror_x, mirror_y,
+                    swap_xy) {}
 
 WatchDisplay::~WatchDisplay() {
     DisplayLockGuard lock(this);
-    if (clock_timer_ != nullptr) {
-        lv_timer_delete(clock_timer_);
-        clock_timer_ = nullptr;
-    }
-    if (watch_face_ != nullptr) {
-        lv_obj_del(watch_face_);
-        watch_face_ = nullptr;
-    }
+    watch_face_.reset();
 }
 
 void WatchDisplay::RounderEventCallback(lv_event_t* event) {
@@ -34,82 +25,12 @@ void WatchDisplay::RounderEventCallback(lv_event_t* event) {
     area->y2 = ((area->y2 >> 1) << 1) + 1;
 }
 
-void WatchDisplay::ClockTimerCallback(lv_timer_t* timer) {
-    auto* display = static_cast<WatchDisplay*>(lv_timer_get_user_data(timer));
-    display->UpdateClock();
-
-    if (Application::GetInstance().GetDeviceState() == kDeviceStateIdle &&
-        display->notification_label_ != nullptr && display->status_label_ != nullptr &&
-        lv_obj_has_flag(display->notification_label_, LV_OBJ_FLAG_HIDDEN)) {
-        const char* status = lv_label_get_text(display->status_label_);
-        display->ApplyWatchFaceVisibility(display->IsIdleFaceStatus(status));
-    }
+void WatchDisplay::TalkRequested(void* context) {
+    static_cast<WatchDisplay*>(context)->HandleTalkRequested();
 }
 
-void WatchDisplay::AssistantButtonCallback(lv_event_t* event) {
-    auto* display = static_cast<WatchDisplay*>(lv_event_get_user_data(event));
-    display->ApplyWatchFaceVisibility(false);
-    Application::GetInstance().ToggleChatState();
-}
-
-void WatchDisplay::CreateWatchFace() {
-    watch_face_ = lv_obj_create(container_);
-    lv_obj_set_size(watch_face_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_pos(watch_face_, 0, 0);
-    lv_obj_set_style_radius(watch_face_, 0, 0);
-    lv_obj_set_style_border_width(watch_face_, 0, 0);
-    lv_obj_set_style_pad_all(watch_face_, 0, 0);
-    lv_obj_set_style_bg_color(watch_face_, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(watch_face_, LV_OPA_COVER, 0);
-    lv_obj_set_scrollbar_mode(watch_face_, LV_SCROLLBAR_MODE_OFF);
-
-    brand_label_ = lv_label_create(watch_face_);
-    lv_label_set_text(brand_label_, "MYWATCH");
-    lv_obj_set_style_text_font(brand_label_, &BUILTIN_TEXT_FONT, 0);
-    lv_obj_set_style_text_color(brand_label_, lv_color_hex(0x7F8CFF), 0);
-    lv_obj_set_style_text_letter_space(brand_label_, 3, 0);
-    lv_obj_align(brand_label_, LV_ALIGN_TOP_MID, 0, 62);
-
-    time_label_ = lv_label_create(watch_face_);
-    lv_label_set_text(time_label_, "--:--");
-    lv_obj_set_style_text_font(time_label_, &BUILTIN_TEXT_FONT, 0);
-    lv_obj_set_style_text_color(time_label_, lv_color_white(), 0);
-    lv_obj_set_style_text_letter_space(time_label_, 4, 0);
-    lv_obj_align(time_label_, LV_ALIGN_CENTER, 0, -92);
-
-    date_label_ = lv_label_create(watch_face_);
-    lv_label_set_text(date_label_, "Waiting for time");
-    lv_obj_set_style_text_font(date_label_, &BUILTIN_TEXT_FONT, 0);
-    lv_obj_set_style_text_color(date_label_, lv_color_hex(0x9AA0AA), 0);
-    lv_obj_align(date_label_, LV_ALIGN_CENTER, 0, -43);
-
-    assistant_button_ = lv_button_create(watch_face_);
-    lv_obj_set_size(assistant_button_, 116, 116);
-    lv_obj_set_style_radius(assistant_button_, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(assistant_button_, lv_color_hex(0x315CFF), 0);
-    lv_obj_set_style_bg_opa(assistant_button_, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(assistant_button_, 2, 0);
-    lv_obj_set_style_border_color(assistant_button_, lv_color_hex(0x8BA4FF), 0);
-    lv_obj_set_style_shadow_width(assistant_button_, 18, 0);
-    lv_obj_set_style_shadow_color(assistant_button_, lv_color_hex(0x2448CC), 0);
-    lv_obj_set_style_shadow_opa(assistant_button_, LV_OPA_50, 0);
-    lv_obj_align(assistant_button_, LV_ALIGN_CENTER, 0, 72);
-    lv_obj_add_event_cb(assistant_button_, AssistantButtonCallback, LV_EVENT_CLICKED, this);
-
-    assistant_label_ = lv_label_create(assistant_button_);
-    lv_label_set_text(assistant_label_, "AI");
-    lv_obj_set_style_text_font(assistant_label_, &BUILTIN_TEXT_FONT, 0);
-    lv_obj_set_style_text_color(assistant_label_, lv_color_white(), 0);
-    lv_obj_center(assistant_label_);
-
-    hint_label_ = lv_label_create(watch_face_);
-    lv_label_set_text(hint_label_, "TAP TO TALK");
-    lv_obj_set_style_text_font(hint_label_, &BUILTIN_TEXT_FONT, 0);
-    lv_obj_set_style_text_color(hint_label_, lv_color_hex(0x8A8F99), 0);
-    lv_obj_set_style_text_letter_space(hint_label_, 2, 0);
-    lv_obj_align(hint_label_, LV_ALIGN_BOTTOM_MID, 0, -54);
-
-    lv_obj_add_flag(watch_face_, LV_OBJ_FLAG_HIDDEN);
+void WatchDisplay::FaceTick(void* context) {
+    static_cast<WatchDisplay*>(context)->MaybeRestoreIdleFace();
 }
 
 void WatchDisplay::SetupUI() {
@@ -124,9 +45,12 @@ void WatchDisplay::SetupUI() {
     lv_obj_set_style_pad_right(status_bar_, LV_HOR_RES * 0.1, 0);
     lv_display_add_event_cb(display_, RounderEventCallback, LV_EVENT_INVALIDATE_AREA, nullptr);
 
-    CreateWatchFace();
-    UpdateClock();
-    clock_timer_ = lv_timer_create(ClockTimerCallback, 1000, this);
+    WatchFace::Callbacks callbacks = {
+        .on_talk = TalkRequested,
+        .on_tick = FaceTick,
+        .context = this,
+    };
+    watch_face_ = std::make_unique<WatchFace>(container_, callbacks);
 }
 
 void WatchDisplay::SetStatus(const char* status) {
@@ -139,27 +63,19 @@ void WatchDisplay::ShowNotification(const char* notification, int duration_ms) {
     SetWatchFaceVisible(false);
 }
 
-void WatchDisplay::UpdateClock() {
-    if (time_label_ == nullptr || date_label_ == nullptr) {
+void WatchDisplay::HandleTalkRequested() {
+    ApplyWatchFaceVisibility(false);
+    Application::GetInstance().ToggleChatState();
+}
+
+void WatchDisplay::MaybeRestoreIdleFace() {
+    if (Application::GetInstance().GetDeviceState() != kDeviceStateIdle ||
+        notification_label_ == nullptr || status_label_ == nullptr ||
+        !lv_obj_has_flag(notification_label_, LV_OBJ_FLAG_HIDDEN)) {
         return;
     }
 
-    const time_t now = time(nullptr);
-    struct tm time_info = {};
-    localtime_r(&now, &time_info);
-
-    if (time_info.tm_year < 2025 - 1900) {
-        lv_label_set_text(time_label_, "--:--");
-        lv_label_set_text(date_label_, "Waiting for time");
-        return;
-    }
-
-    char time_text[8];
-    char date_text[16];
-    strftime(time_text, sizeof(time_text), "%H:%M", &time_info);
-    strftime(date_text, sizeof(date_text), "%Y-%m-%d", &time_info);
-    lv_label_set_text(time_label_, time_text);
-    lv_label_set_text(date_label_, date_text);
+    ApplyWatchFaceVisibility(IsIdleFaceStatus(lv_label_get_text(status_label_)));
 }
 
 bool WatchDisplay::IsIdleFaceStatus(const char* status) const {
@@ -175,8 +91,8 @@ bool WatchDisplay::IsIdleFaceStatus(const char* status) const {
 }
 
 void WatchDisplay::UpdateWatchFaceVisibility(const char* status) {
-    const bool show = Application::GetInstance().GetDeviceState() == kDeviceStateIdle &&
-                      IsIdleFaceStatus(status);
+    const bool show =
+        Application::GetInstance().GetDeviceState() == kDeviceStateIdle && IsIdleFaceStatus(status);
     SetWatchFaceVisible(show);
 }
 
@@ -186,46 +102,46 @@ void WatchDisplay::SetWatchFaceVisible(bool visible) {
 }
 
 void WatchDisplay::ApplyWatchFaceVisibility(bool visible) {
-    if (watch_face_ == nullptr || visible == watch_face_visible_) {
+    if (watch_face_ == nullptr || visible == watch_face_->IsVisible()) {
         return;
     }
 
-    watch_face_visible_ = visible;
     if (visible) {
-        UpdateClock();
-        status_bar_was_hidden_ = lv_obj_has_flag(status_bar_, LV_OBJ_FLAG_HIDDEN);
-        emoji_box_was_hidden_ =
-            emoji_box_ == nullptr || lv_obj_has_flag(emoji_box_, LV_OBJ_FLAG_HIDDEN);
-        preview_image_was_hidden_ =
-            preview_image_ == nullptr || lv_obj_has_flag(preview_image_, LV_OBJ_FLAG_HIDDEN);
-        bottom_bar_was_hidden_ =
-            bottom_bar_ == nullptr || lv_obj_has_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
-
-        lv_obj_remove_flag(watch_face_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(status_bar_, LV_OBJ_FLAG_HIDDEN);
-        if (emoji_box_ != nullptr) {
-            lv_obj_add_flag(emoji_box_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (preview_image_ != nullptr) {
-            lv_obj_add_flag(preview_image_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (bottom_bar_ != nullptr) {
-            lv_obj_add_flag(bottom_bar_, LV_OBJ_FLAG_HIDDEN);
-        }
+        CaptureAssistantLayerVisibility();
+        SetObjectHidden(status_bar_, true);
+        SetObjectHidden(emoji_box_, true);
+        SetObjectHidden(preview_image_, true);
+        SetObjectHidden(bottom_bar_, true);
+        watch_face_->SetVisible(true);
     } else {
-        lv_obj_add_flag(watch_face_, LV_OBJ_FLAG_HIDDEN);
-        RestoreObjectVisibility(status_bar_, status_bar_was_hidden_);
-        RestoreObjectVisibility(emoji_box_, emoji_box_was_hidden_);
-        RestoreObjectVisibility(preview_image_, preview_image_was_hidden_);
-        RestoreObjectVisibility(bottom_bar_, bottom_bar_was_hidden_);
+        watch_face_->SetVisible(false);
+        RestoreAssistantLayerVisibility();
     }
 }
 
-void WatchDisplay::RestoreObjectVisibility(lv_obj_t* object, bool was_hidden) {
+void WatchDisplay::CaptureAssistantLayerVisibility() {
+    assistant_visibility_.status_bar_hidden = IsObjectHidden(status_bar_);
+    assistant_visibility_.emoji_box_hidden = IsObjectHidden(emoji_box_);
+    assistant_visibility_.preview_image_hidden = IsObjectHidden(preview_image_);
+    assistant_visibility_.bottom_bar_hidden = IsObjectHidden(bottom_bar_);
+}
+
+void WatchDisplay::RestoreAssistantLayerVisibility() {
+    SetObjectHidden(status_bar_, assistant_visibility_.status_bar_hidden);
+    SetObjectHidden(emoji_box_, assistant_visibility_.emoji_box_hidden);
+    SetObjectHidden(preview_image_, assistant_visibility_.preview_image_hidden);
+    SetObjectHidden(bottom_bar_, assistant_visibility_.bottom_bar_hidden);
+}
+
+bool WatchDisplay::IsObjectHidden(lv_obj_t* object) {
+    return object == nullptr || lv_obj_has_flag(object, LV_OBJ_FLAG_HIDDEN);
+}
+
+void WatchDisplay::SetObjectHidden(lv_obj_t* object, bool hidden) {
     if (object == nullptr) {
         return;
     }
-    if (was_hidden) {
+    if (hidden) {
         lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);

@@ -1,116 +1,60 @@
-#include "wifi_board.h"
-#include "watch_display.h"
-#include "esp_lcd_sh8601.h"
-
-#include "codecs/box_audio_codec.h"
 #include "application.h"
 #include "button.h"
-#include "led/single_led.h"
-#include "mcp_server.h"
+#include "codecs/box_audio_codec.h"
 #include "config.h"
+#include "mcp_server.h"
 #include "power_save_timer.h"
-#include "axp2101.h"
-#include "i2c_device.h"
+#include "watch_backlight.h"
+#include "watch_display.h"
+#include "watch_power.h"
+#include "wifi_board.h"
 
-#include <esp_log.h>
-#include <esp_lcd_panel_vendor.h>
 #include <driver/i2c_master.h>
 #include <driver/spi_master.h>
-#include "settings.h"
-
+#include <esp_lcd_panel_vendor.h>
+#include <esp_lcd_sh8601.h>
 #include <esp_lcd_touch_ft5x06.h>
+#include <esp_log.h>
 #include <esp_lvgl_port.h>
 #include <lvgl.h>
 
 #define TAG "MyWatchBoard"
 
-class Pmic : public Axp2101 {
-public:
-    Pmic(i2c_master_bus_handle_t i2c_bus, uint8_t addr) : Axp2101(i2c_bus, addr) {
-        WriteReg(0x22, 0b110); // PWRON > OFFLEVEL as POWEROFF Source enable
-        WriteReg(0x27, 0x10);  // hold 4s to power off
-
-        // Disable All DCs but DC1
-        WriteReg(0x80, 0x01);
-        // Disable All LDOs
-        WriteReg(0x90, 0x00);
-        WriteReg(0x91, 0x00);
-
-        // Set DC1 to 3.3V
-        WriteReg(0x82, (3300 - 1500) / 100);
-
-        // Set ALDO1 to 3.3V
-        WriteReg(0x92, (3300 - 500) / 100);
-        WriteReg(0x93, (3300 - 500) / 100);
-
-        // Enable ALDO1(MIC)
-        WriteReg(0x90, 0x03);
-
-        WriteReg(0x64, 0x02); // CV charger voltage setting to 4.1V
-
-        WriteReg(0x61, 0x02); // set Main battery precharge current to 50mA
-        WriteReg(0x62, 0x0A); // set Main battery charger current to 400mA ( 0x08-200mA, 0x09-300mA, 0x0A-400mA )
-        WriteReg(0x63, 0x01); // set Main battery term charge current to 25mA
-    }
-};
-
-#define LCD_OPCODE_WRITE_CMD (0x02ULL)
-#define LCD_OPCODE_READ_CMD (0x03ULL)
-#define LCD_OPCODE_WRITE_COLOR (0x32ULL)
-
 static const sh8601_lcd_init_cmd_t vendor_specific_init[] = {
     // set display to qspi mode
-    {0x11, (uint8_t []){0x00}, 0, 120},
-    {0xC4, (uint8_t []){0x80}, 1, 0},
-    {0x44, (uint8_t []){0x01, 0xD1}, 2, 0},
-    {0x35, (uint8_t []){0x00}, 1, 0},
-    {0x53, (uint8_t []){0x20}, 1, 10},
-    {0x63, (uint8_t []){0xFF}, 1, 10},
-    {0x51, (uint8_t []){0x00}, 1, 10},
-    {0x2A, (uint8_t []){0x00,0x16,0x01,0xAF}, 4, 0},
-    {0x2B, (uint8_t []){0x00,0x00,0x01,0xF5}, 4, 0},
-    {0x29, (uint8_t []){0x00}, 0, 10},
-    {0x51, (uint8_t []){0xFF}, 1, 0},
-};
-
-class CustomBacklight : public Backlight {
-public:
-    CustomBacklight(esp_lcd_panel_io_handle_t panel_io) : Backlight(), panel_io_(panel_io) {}
-
-protected:
-    esp_lcd_panel_io_handle_t panel_io_;
-
-    virtual void SetBrightnessImpl(uint8_t brightness) override {
-        auto display = Board::GetInstance().GetDisplay();
-        DisplayLockGuard lock(display);
-        uint8_t data[1] = {((uint8_t)((255*  brightness) / 100))};
-        int lcd_cmd = 0x51;
-        lcd_cmd &= 0xff;
-        lcd_cmd <<= 8;
-        lcd_cmd |= LCD_OPCODE_WRITE_CMD << 24;
-        esp_lcd_panel_io_tx_param(panel_io_, lcd_cmd, &data, sizeof(data));
-    }
+    {0x11, (uint8_t[]){0x00}, 0, 120},
+    {0xC4, (uint8_t[]){0x80}, 1, 0},
+    {0x44, (uint8_t[]){0x01, 0xD1}, 2, 0},
+    {0x35, (uint8_t[]){0x00}, 1, 0},
+    {0x53, (uint8_t[]){0x20}, 1, 10},
+    {0x63, (uint8_t[]){0xFF}, 1, 10},
+    {0x51, (uint8_t[]){0x00}, 1, 10},
+    {0x2A, (uint8_t[]){0x00, 0x16, 0x01, 0xAF}, 4, 0},
+    {0x2B, (uint8_t[]){0x00, 0x00, 0x01, 0xF5}, 4, 0},
+    {0x29, (uint8_t[]){0x00}, 0, 10},
+    {0x51, (uint8_t[]){0xFF}, 1, 0},
 };
 
 class MyWatchBoard : public WifiBoard {
 private:
-    i2c_master_bus_handle_t i2c_bus_;
-    Pmic* pmic_ = nullptr;
+    i2c_master_bus_handle_t i2c_bus_ = nullptr;
+    WatchPower* power_ = nullptr;
     Button boot_button_;
-    WatchDisplay* display_;
-    CustomBacklight* backlight_;
-    PowerSaveTimer* power_save_timer_;
+    WatchDisplay* display_ = nullptr;
+    WatchBacklight* backlight_ = nullptr;
+    PowerSaveTimer* power_save_timer_ = nullptr;
 
     void InitializePowerSaveTimer() {
         power_save_timer_ = new PowerSaveTimer(-1, 60, 300);
         power_save_timer_->OnEnterSleepMode([this]() {
             GetDisplay()->SetPowerSaveMode(true);
-            GetBacklight()->SetBrightness(20); });
+            GetBacklight()->SetBrightness(20);
+        });
         power_save_timer_->OnExitSleepMode([this]() {
             GetDisplay()->SetPowerSaveMode(false);
-            GetBacklight()->RestoreBrightness(); });
-        power_save_timer_->OnShutdownRequest([this](){
-            pmic_->PowerOff(); });
+            GetBacklight()->RestoreBrightness();
+        });
+        power_save_timer_->OnShutdownRequest([this]() { power_->PowerOff(); });
         power_save_timer_->SetEnabled(true);
     }
 
@@ -121,16 +65,17 @@ private:
             .sda_io_num = AUDIO_CODEC_I2C_SDA_PIN,
             .scl_io_num = AUDIO_CODEC_I2C_SCL_PIN,
             .clk_source = I2C_CLK_SRC_DEFAULT,
-            .flags = {
-                .enable_internal_pullup = 1,
-            },
+            .flags =
+                {
+                    .enable_internal_pullup = 1,
+                },
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2c_bus_));
     }
 
-    void InitializeAxp2101() {
-        ESP_LOGI(TAG, "Init AXP2101");
-        pmic_ = new Pmic(i2c_bus_, 0x34);
+    void InitializePower() {
+        ESP_LOGI(TAG, "Initialize AXP2101 power management");
+        power_ = new WatchPower(i2c_bus_, 0x34);
     }
 
     void InitializeSpi() {
@@ -140,7 +85,11 @@ private:
         buscfg.data1_io_num = DISPLAY_QSPI_DATA1_PIN;
         buscfg.data2_io_num = DISPLAY_QSPI_DATA2_PIN;
         buscfg.data3_io_num = DISPLAY_QSPI_DATA3_PIN;
-        buscfg.max_transfer_sz = DISPLAY_WIDTH*  DISPLAY_HEIGHT*  sizeof(uint16_t);
+        buscfg.data4_io_num = GPIO_NUM_NC;
+        buscfg.data5_io_num = GPIO_NUM_NC;
+        buscfg.data6_io_num = GPIO_NUM_NC;
+        buscfg.data7_io_num = GPIO_NUM_NC;
+        buscfg.max_transfer_sz = DISPLAY_WIDTH * DISPLAY_HEIGHT * sizeof(uint16_t);
         buscfg.flags = SPICOMMON_BUSFLAG_QUAD;
         ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
     }
@@ -169,7 +118,7 @@ private:
         esp_lcd_panel_io_handle_t panel_io = nullptr;
         esp_lcd_panel_handle_t panel = nullptr;
 
-        // 液晶屏控制IO初始化
+        // Initialize the panel transport.
         ESP_LOGD(TAG, "Install panel IO");
         esp_lcd_panel_io_spi_config_t io_config = {};
         io_config.cs_gpio_num = DISPLAY_QSPI_CS_PIN;
@@ -182,7 +131,7 @@ private:
         io_config.flags.quad_mode = true;
         ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(SPI2_HOST, &io_config, &panel_io));
 
-        // 初始化液晶屏驱动芯片
+        // Initialize the SH8601 panel.
         ESP_LOGD(TAG, "Install LCD driver");
         const sh8601_vendor_config_t vendor_config = {
             .init_cmds = &vendor_specific_init[0],
@@ -195,7 +144,7 @@ private:
         panel_config.reset_gpio_num = DISPLAY_RESET_PIN;
         panel_config.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB;
         panel_config.bits_per_pixel = 16;
-        panel_config.vendor_config = (void* )&vendor_config;
+        panel_config.vendor_config = (void*)&vendor_config;
         ESP_ERROR_CHECK(esp_lcd_new_panel_sh8601(panel_io, &panel_config, &panel));
         esp_lcd_panel_set_gap(panel, 0x16, 0);
         esp_lcd_panel_reset(panel);
@@ -203,10 +152,10 @@ private:
         esp_lcd_panel_invert_color(panel, false);
         esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
         esp_lcd_panel_disp_on_off(panel, true);
-        display_ = new WatchDisplay(panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT,
-                                    DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X,
-                                    DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
-        backlight_ = new CustomBacklight(panel_io);
+        display_ =
+            new WatchDisplay(panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X,
+                             DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
+        backlight_ = new WatchBacklight(panel_io, display_);
         backlight_->RestoreBrightness();
     }
 
@@ -217,15 +166,17 @@ private:
             .y_max = DISPLAY_HEIGHT - 1,
             .rst_gpio_num = TOUCH_RESET_PIN,
             .int_gpio_num = TOUCH_INTERRUPT_PIN,
-            .levels = {
-                .reset = 0,
-                .interrupt = 0,
-            },
-            .flags = {
-                .swap_xy = 0,
-                .mirror_x = 0,
-                .mirror_y = 0,
-            },
+            .levels =
+                {
+                    .reset = 0,
+                    .interrupt = 0,
+                },
+            .flags =
+                {
+                    .swap_xy = 0,
+                    .mirror_x = 0,
+                    .mirror_y = 0,
+                },
         };
         esp_lcd_panel_io_handle_t tp_io_handle = NULL;
         esp_lcd_panel_io_i2c_config_t tp_io_config = {
@@ -233,12 +184,10 @@ private:
             .control_phase_bytes = 1,
             .dc_bit_offset = 0,
             .lcd_cmd_bits = 8,
-            .flags =
-            {
+            .flags = {
                 .disable_control_phase = 1,
-            }
-        };
-        tp_io_config.scl_speed_hz = 400*  1000;
+            }};
+        tp_io_config.scl_speed_hz = 400 * 1000;
         ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(i2c_bus_, &tp_io_config, &tp_io_handle));
         ESP_LOGI(TAG, "Initialize touch controller");
         ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_ft5x06(tp_io_handle, &tp_cfg, &tp));
@@ -250,66 +199,53 @@ private:
         ESP_LOGI(TAG, "Touch panel initialized successfully");
     }
 
-    // 初始化工具
+    // Initialize device tools.
     void InitializeTools() {
-        auto &mcp_server = McpServer::GetInstance();
+        auto& mcp_server = McpServer::GetInstance();
         mcp_server.AddTool("self.system.reconfigure_wifi",
-            "End this conversation and enter WiFi configuration mode.\n"
-            "**CAUTION** You must ask the user to confirm this action.",
-            PropertyList(), [this](const PropertyList& properties) {
-                EnterWifiConfigMode();
-                return true;
-            });
+                           "End this conversation and enter WiFi configuration mode.\n"
+                           "**CAUTION** You must ask the user to confirm this action.",
+                           PropertyList(), [this](const PropertyList& properties) {
+                               EnterWifiConfigMode();
+                               return true;
+                           });
     }
 
 public:
     MyWatchBoard() : boot_button_(BOOT_BUTTON_GPIO) {
-        InitializePowerSaveTimer();
         InitializeCodecI2c();
-        InitializeAxp2101();
+        InitializePower();
         InitializeSpi();
         InitializeSH8601Display();
         InitializeTouch();
         InitializeButtons();
         InitializeTools();
+        InitializePowerSaveTimer();
     }
 
     virtual AudioCodec* GetAudioCodec() override {
         static BoxAudioCodec audio_codec(
-            i2c_bus_,
-            AUDIO_INPUT_SAMPLE_RATE,
-            AUDIO_OUTPUT_SAMPLE_RATE,
-            AUDIO_I2S_GPIO_MCLK,
-            AUDIO_I2S_GPIO_BCLK,
-            AUDIO_I2S_GPIO_WS,
-            AUDIO_I2S_GPIO_DOUT,
-            AUDIO_I2S_GPIO_DIN,
-            AUDIO_CODEC_PA_PIN,
-            AUDIO_CODEC_ES8311_ADDR,
-            AUDIO_CODEC_ES7210_ADDR,
+            i2c_bus_, AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE, AUDIO_I2S_GPIO_MCLK,
+            AUDIO_I2S_GPIO_BCLK, AUDIO_I2S_GPIO_WS, AUDIO_I2S_GPIO_DOUT, AUDIO_I2S_GPIO_DIN,
+            AUDIO_CODEC_PA_PIN, AUDIO_CODEC_ES8311_ADDR, AUDIO_CODEC_ES7210_ADDR,
             AUDIO_INPUT_REFERENCE);
         return &audio_codec;
     }
 
-    virtual Display* GetDisplay() override {
-        return display_;
-    }
+    virtual Display* GetDisplay() override { return display_; }
 
-    virtual Backlight* GetBacklight() override {
-        return backlight_;
-    }
+    virtual Backlight* GetBacklight() override { return backlight_; }
 
-    virtual bool GetBatteryLevel(int &level, bool &charging, bool &discharging) override {
+    virtual bool GetBatteryLevel(int& level, bool& charging, bool& discharging) override {
         static bool last_discharging = false;
-        charging = pmic_->IsCharging();
-        discharging = pmic_->IsDischarging();
-        if (discharging != last_discharging)
-        {
+        charging = power_->IsCharging();
+        discharging = power_->IsDischarging();
+        if (discharging != last_discharging) {
             power_save_timer_->SetEnabled(discharging);
             last_discharging = discharging;
         }
 
-        level = pmic_->GetBatteryLevel();
+        level = power_->GetBatteryLevel();
         return true;
     }
 

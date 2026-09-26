@@ -1,37 +1,32 @@
 # MyWatch ESP32-S3 Smartwatch
 
-This is the independent smartwatch product variant based on the Waveshare
-ESP32-S3-Touch-AMOLED-2.06 hardware.
+MyWatch is an independent smartwatch product variant based on the Waveshare
+ESP32-S3-Touch-AMOLED-2.06 hardware. It reuses Xiaozhi voice, networking, audio,
+and protocol services while keeping product-specific hardware and UI in this
+directory.
 
-The initial version keeps the proven display, touch, audio, battery, and power
-management behavior of the upstream board implementation. Watch-specific UI,
-RTC, IMU, notifications, and power management will be developed in this
-directory without changing the upstream Waveshare board identity.
+## Structure
 
-## Architecture
+- `smartwatch_board.cc`: hardware composition and generic `Board` capabilities
+- `watch_power.*`: AXP2101 rail and charging configuration
+- `watch_backlight.*`: SH8601 AMOLED brightness transport
+- `watch_display.*`: Xiaozhi state to watch-surface adapter
+- `watch_face.*`: idle LVGL surface, clock, and talk action
+- `watch_ui_tokens.h`: firmware visual constants
+- `ARCHITECTURE.md`: ownership rules and feature extension plan
 
-- MyWatchBoard is the hardware adaptation layer. It initializes the SH8601
-  AMOLED panel, FT5x06 touch controller, audio codec, AXP2101 PMIC, buttons, and
-  power-save timer.
-- WatchDisplay is the smartwatch presentation layer. It extends the existing
-  SpiLcdDisplay, keeps the upstream assistant UI, and adds an AMOLED-friendly
-  idle watch face.
-- Application remains the product state machine. Idle state shows the watch
-  face; listening, speaking, network, error, and notification states use the
-  existing assistant UI.
-- The round AI button posts Application::ToggleChatState(). Audio capture,
-  protocol transport, wake-word detection, and playback continue to use the
-  upstream Xiaozhi services.
+Runtime flow:
 
-Current UI flow:
+```text
+Idle watch face -> tap AI -> Connecting -> Listening -> Speaking -> Idle watch face
+```
 
-Idle watch face -> tap AI -> Listening -> Speaking -> Idle watch face
+The AI action uses `Application::ToggleChatState()`. Audio capture, AEC, protocol
+transport, wake-word detection, and playback remain owned by Xiaozhi core.
 
-Future watch services such as RTC synchronization, IMU/step counting, phone
-notifications, and deeper sleep management should be added as independent
-components and exposed to the board/display layer through small interfaces.
+## Build
 
-Build with ESP-IDF 6.0.1 or newer:
+Use ESP-IDF 6.0.1 or newer:
 
 ```sh
 python3 scripts/build.py mywatch/esp32-s3-smartwatch \
@@ -39,3 +34,9 @@ python3 scripts/build.py mywatch/esp32-s3-smartwatch \
     --language zh-CN \
     --wake-word nihaoxiaozhi
 ```
+
+## UI Simulator
+
+Open `tools/watch-ui-simulator/index.html` in a browser. It previews the idle,
+connecting, listening, speaking, notification, and error states without an
+ESP-IDF build.

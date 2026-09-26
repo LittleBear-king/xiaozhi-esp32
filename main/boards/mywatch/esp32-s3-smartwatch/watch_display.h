@@ -5,7 +5,11 @@
 
 #include <lvgl.h>
 
-class WatchDisplay : public SpiLcdDisplay {
+#include <memory>
+
+class WatchFace;
+
+class WatchDisplay final : public SpiLcdDisplay {
 public:
     WatchDisplay(esp_lcd_panel_io_handle_t io_handle, esp_lcd_panel_handle_t panel_handle,
                  int width, int height, int offset_x, int offset_y, bool mirror_x, bool mirror_y,
@@ -17,30 +21,29 @@ public:
     void ShowNotification(const char* notification, int duration_ms = 3000) override;
 
 private:
-    lv_obj_t* watch_face_ = nullptr;
-    lv_obj_t* brand_label_ = nullptr;
-    lv_obj_t* time_label_ = nullptr;
-    lv_obj_t* date_label_ = nullptr;
-    lv_obj_t* assistant_button_ = nullptr;
-    lv_obj_t* assistant_label_ = nullptr;
-    lv_obj_t* hint_label_ = nullptr;
-    lv_timer_t* clock_timer_ = nullptr;
-    bool watch_face_visible_ = false;
-    bool status_bar_was_hidden_ = false;
-    bool emoji_box_was_hidden_ = false;
-    bool preview_image_was_hidden_ = true;
-    bool bottom_bar_was_hidden_ = true;
+    struct AssistantLayerVisibility {
+        bool status_bar_hidden = false;
+        bool emoji_box_hidden = false;
+        bool preview_image_hidden = true;
+        bool bottom_bar_hidden = true;
+    };
+
+    std::unique_ptr<WatchFace> watch_face_;
+    AssistantLayerVisibility assistant_visibility_;
 
     static void RounderEventCallback(lv_event_t* event);
-    static void ClockTimerCallback(lv_timer_t* timer);
-    static void AssistantButtonCallback(lv_event_t* event);
+    static void TalkRequested(void* context);
+    static void FaceTick(void* context);
 
-    void CreateWatchFace();
-    void UpdateClock();
+    void HandleTalkRequested();
+    void MaybeRestoreIdleFace();
     void UpdateWatchFaceVisibility(const char* status);
     void SetWatchFaceVisible(bool visible);
     void ApplyWatchFaceVisibility(bool visible);
-    void RestoreObjectVisibility(lv_obj_t* object, bool was_hidden);
+    void CaptureAssistantLayerVisibility();
+    void RestoreAssistantLayerVisibility();
+    static bool IsObjectHidden(lv_obj_t* object);
+    static void SetObjectHidden(lv_obj_t* object, bool hidden);
     bool IsIdleFaceStatus(const char* status) const;
 };
 
