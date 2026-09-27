@@ -7,13 +7,14 @@ directory.
 
 ## Structure
 
-- `smartwatch_board.cc`: hardware composition and generic `Board` capabilities
-- `watch_power.*`: AXP2101 rail and charging configuration
-- `watch_backlight.*`: SH8601 AMOLED brightness transport
-- `watch_display.*`: Xiaozhi state to watch-surface adapter
-- `watch_face.*`: idle LVGL surface, clock, and talk action
-- `watch_ui_tokens.h`: firmware visual constants
-- `ARCHITECTURE.md`: ownership rules and feature extension plan
+- `board/`: hardware composition and generic `Board` capabilities
+- `hal/`: product-specific power and AMOLED transport
+- `ui/`: display adapter, watch surfaces, and visual constants
+- `docs/`: architecture and product engineering notes
+- `board.cmake`: explicit source manifest for the nested modules
+- `config.h` / `config.json`: board pins, identity, and build variants
+
+See `docs/ARCHITECTURE.md` for ownership rules and the extension plan.
 
 Runtime flow:
 

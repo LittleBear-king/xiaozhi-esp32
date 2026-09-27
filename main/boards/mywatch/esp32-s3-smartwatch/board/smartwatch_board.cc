@@ -4,9 +4,9 @@
 #include "config.h"
 #include "mcp_server.h"
 #include "power_save_timer.h"
-#include "watch_backlight.h"
-#include "watch_display.h"
-#include "watch_power.h"
+#include "hal/watch_backlight.h"
+#include "hal/watch_power.h"
+#include "ui/watch_display.h"
 #include "wifi_board.h"
 
 #include <driver/i2c_master.h>
