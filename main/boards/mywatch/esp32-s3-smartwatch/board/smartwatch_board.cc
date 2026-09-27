@@ -8,8 +8,8 @@
 #include "hal/watch_power.h"
 #include "mcp_server.h"
 #include "model/watch_model.h"
-#include "power_save_timer.h"
 #include "services/watch_motion_service.h"
+#include "services/watch_power_policy.h"
 #include "ui/watch_display.h"
 #include "wifi_board.h"
 
@@ -22,7 +22,6 @@
 #include <esp_lvgl_port.h>
 #include <lvgl.h>
 
-#include <atomic>
 #include <memory>
 #include <utility>
 
@@ -52,33 +51,16 @@ private:
     Button boot_button_;
     WatchDisplay* display_ = nullptr;
     WatchBacklight* backlight_ = nullptr;
-    PowerSaveTimer* power_save_timer_ = nullptr;
     std::unique_ptr<WatchMotion> motion_;
     std::unique_ptr<WatchMotionService> motion_service_;
-    std::atomic<bool> display_sleeping_{false};
-    bool last_discharging_ = false;
+    std::unique_ptr<WatchPowerPolicy> power_policy_;
 
-    void InitializePowerSaveTimer() {
-        power_save_timer_ = new PowerSaveTimer(-1, 60, -1);
-        power_save_timer_->OnEnterSleepMode([this]() {
-            display_sleeping_.store(true);
-            if (motion_service_ != nullptr) {
-                motion_service_->SetEnabled(true);
-            }
-            GetDisplay()->SetPowerSaveMode(true);
-            GetBacklight()->SetBrightness(0);
-        });
-        power_save_timer_->OnExitSleepMode([this]() {
-            GetDisplay()->SetPowerSaveMode(false);
-            GetBacklight()->RestoreBrightness();
-            display_sleeping_.store(false);
-            if (motion_service_ != nullptr) {
-                motion_service_->SetEnabled(false);
-            }
-        });
-        power_save_timer_->OnShutdownRequest([this]() { power_->PowerOff(); });
-        last_discharging_ = power_->IsDischarging();
-        power_save_timer_->SetEnabled(last_discharging_);
+    void InitializePowerPolicy() {
+        WatchPowerPolicy::Config power_config;
+        power_policy_ = std::make_unique<WatchPowerPolicy>(*display_, *backlight_, power_config,
+                                                           [this]() { power_->PowerOff(); });
+        power_policy_->Start(power_->IsDischarging());
+        watch_controller_.AttachPowerPolicy(*power_policy_);
     }
 
     void InitializeMotion() {
@@ -91,19 +73,15 @@ private:
 
         WatchMotionService::Config motion_config;
         motion_config.face_up_z_sign = IMU_FACE_UP_Z_SIGN;
-        motion_service_ = std::make_unique<WatchMotionService>(*motion_, motion_config, [this]() {
-            Application::GetInstance().Schedule([this]() {
-                if (display_sleeping_.load() && power_save_timer_ != nullptr) {
-                    ESP_LOGI(TAG, "Wake display after wrist raise");
-                    power_save_timer_->WakeUp();
-                }
-            });
-        });
+        motion_service_ = std::make_unique<WatchMotionService>(
+            *motion_, motion_config, [this]() { watch_controller_.NotifyUserActivity(); });
         if (!motion_service_->Start()) {
             ESP_LOGW(TAG, "Raise-to-wake service failed to start");
             motion_service_.reset();
             motion_.reset();
+            return;
         }
+        power_policy_->AttachMotionService(motion_service_.get());
     }
 
     void InitializeCodecI2c() {
@@ -154,6 +132,7 @@ private:
 
 #if CONFIG_USE_DEVICE_AEC
         boot_button_.OnDoubleClick([this]() {
+            watch_controller_.NotifyUserActivity();
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateIdle) {
                 app.SetAecMode(app.GetAecMode() == kAecOff ? kAecOnDeviceSide : kAecOff);
@@ -270,7 +249,7 @@ public:
         InitializeTouch();
         InitializeButtons();
         InitializeTools();
-        InitializePowerSaveTimer();
+        InitializePowerPolicy();
         InitializeMotion();
     }
 
@@ -292,11 +271,6 @@ public:
         discharging = power_->IsDischarging();
         level = power_->GetBatteryLevel();
         watch_controller_.UpdateBattery(level, charging, discharging);
-
-        if (power_save_timer_ != nullptr && discharging != last_discharging_) {
-            power_save_timer_->SetEnabled(discharging);
-            last_discharging_ = discharging;
-        }
         return true;
     }
 
@@ -312,7 +286,7 @@ public:
 
     virtual void SetPowerSaveLevel(PowerSaveLevel level) override {
         if (level != PowerSaveLevel::LOW_POWER) {
-            power_save_timer_->WakeUp();
+            watch_controller_.NotifyUserActivity();
         }
         WifiBoard::SetPowerSaveLevel(level);
     }

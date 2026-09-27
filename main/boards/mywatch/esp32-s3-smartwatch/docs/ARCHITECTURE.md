@@ -19,7 +19,13 @@ Application state and Xiaozhi services
 
 MyWatchBoard -> display / touch / audio / power / buttons
       |
-      +-> WatchMotion HAL -> WatchMotionService -> display wake event
+      +-> WatchMotion HAL -> WatchMotionService
+                                 |
+                                 v
+                         WatchController
+                                 |
+                                 v
+                         WatchPowerPolicy
 ```
 
 Lower layers must not depend on a concrete higher layer. A sensor driver does
@@ -34,7 +40,7 @@ not update LVGL directly, and a view does not read an I2C device directly.
 | `model/` | thread-safe product state snapshots | hardware access or view logic |
 | `hal/` | product-specific device and transport adapters | application state or LVGL screens |
 | `ui/` | LVGL surfaces, display state adaptation, visual tokens | direct I2C/SPI sensor access |
-| `services/` | future battery, motion, time, notification models | board pin definitions or widgets |
+| `services/` | power policy, motion, time, and notification behavior | board pin definitions or widgets |
 | `docs/` | architecture and product engineering decisions | generated output |
 
 The board root is reserved for `config.h`, `config.json`, `board.cmake`, and
@@ -72,6 +78,13 @@ Owns the raise-to-wake algorithm and its bounded sampling task. It filters the
 screen-normal acceleration, recognizes a lowered-to-face-up transition, applies
 a cooldown, and publishes a callback without touching LVGL or power hardware.
 
+### `services/watch_power_policy.*`
+
+Owns display timeout, saved-brightness restoration, charging behavior, optional
+shutdown, and motion-service lifecycle. Hardware and network callbacks report
+activity through `WatchController`; the policy remains the only product module
+that decides when the display sleeps or wakes.
+
 ### `ui/watch_display.*`
 
 Adapter between Xiaozhi display events and MyWatch surfaces. It decides whether
@@ -95,8 +108,9 @@ and the LVGL task. Views only consume snapshots and never query hardware.
 
 ### `controller/watch_controller.*`
 
-Normalizes battery and network events, schedules assistant actions on the
-application task, and exposes application state to the display adapter.
+Normalizes battery and network events, schedules assistant and user-activity
+actions on the application task, and exposes application state to the display
+adapter. Cross-task callbacks must enter product behavior through this layer.
 
 ## Runtime Flow
 
@@ -143,3 +157,8 @@ dependency-free and models the display states without ESP-IDF hardware.
 The simulator is a visual contract, while LVGL firmware is the runtime source
 of truth. Any accepted change to the shared watch-face design should update both
 `ui/watch_ui_tokens.h`/`ui/watch_face.cc` and the simulator in one commit.
+
+## External references
+
+See `OPEN_SOURCE_REFERENCES.md` for the InfiniTime, ZSWatch, and Open-Smartwatch
+patterns used here and the staged product architecture roadmap.

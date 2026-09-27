@@ -8,6 +8,7 @@ list(APPEND SOURCES
     "${MYWATCH_BOARD_ROOT}/hal/watch_power.cc"
     "${MYWATCH_BOARD_ROOT}/model/watch_model.cc"
     "${MYWATCH_BOARD_ROOT}/services/watch_motion_service.cc"
+    "${MYWATCH_BOARD_ROOT}/services/watch_power_policy.cc"
     "${MYWATCH_BOARD_ROOT}/ui/watch_display.cc"
     "${MYWATCH_BOARD_ROOT}/ui/watch_face.cc"
 )

@@ -11,13 +11,14 @@ directory.
 - `controller/`: product actions and platform-event adaptation
 - `model/`: thread-safe state snapshots consumed by the UI
 - `hal/`: product-specific power, AMOLED, and QMI8658 transport
-- `services/`: motion algorithms and product-level sensor behavior
+- `services/`: power policy, motion algorithms, and product behavior
 - `ui/`: display adapter, watch surfaces, and visual constants
-- `docs/`: architecture and product engineering notes
+- `docs/`: architecture decisions, open-source references, and product roadmap
 - `board.cmake`: explicit source manifest for the nested modules
 - `config.h` / `config.json`: board pins, identity, and build variants
 
-See `docs/ARCHITECTURE.md` for ownership rules and the extension plan.
+See `docs/ARCHITECTURE.md` for ownership rules and
+`docs/OPEN_SOURCE_REFERENCES.md` for reference projects and the staged roadmap.
 
 Runtime flow:
 
@@ -34,7 +35,7 @@ transport, wake-word detection, and playback remain owned by Xiaozhi core.
 - live battery percentage with charging and low-battery states
 - Wi-Fi offline, connecting, and online states
 - touch and hardware-button assistant entry
-- charging-aware display sleep policy
+- centralized charging-aware display sleep and wake policy
 - low-power QMI8658 raise-to-wake detection
 - rounded-screen safe-area layout shared with the UI simulator
 - thread-safe `WatchModel` snapshots between platform callbacks and LVGL
