@@ -18,6 +18,8 @@ Application state and Xiaozhi services
      WatchFace       Assistant UI
 
 MyWatchBoard -> display / touch / audio / power / buttons
+      |
+      +-> WatchMotion HAL -> WatchMotionService -> display wake event
 ```
 
 Lower layers must not depend on a concrete higher layer. A sensor driver does
@@ -58,6 +60,18 @@ future battery and charging changes do not affect board composition.
 SH8601 brightness transport. It converts the generic `Backlight` percentage to
 the panel command.
 
+### `hal/watch_motion.*`
+
+QMI8658C transport adapter. It owns sensor initialization and acceleration reads
+on the shared board I2C bus. Sensor register and third-party component details do
+not escape this layer.
+
+### `services/watch_motion_service.*`
+
+Owns the raise-to-wake algorithm and its bounded sampling task. It filters the
+screen-normal acceleration, recognizes a lowered-to-face-up transition, applies
+a cooldown, and publishes a callback without touching LVGL or power hardware.
+
 ### `ui/watch_display.*`
 
 Adapter between Xiaozhi display events and MyWatch surfaces. It decides whether
@@ -95,6 +109,12 @@ Idle -> WatchFace -> tap AI -> WatchController::RequestTalk
 Notifications and errors temporarily use the assistant surface. When the
 notification timer expires and the application is idle, `WatchDisplay` restores
 the watch face.
+
+After the display timeout, AMOLED brightness reaches zero. `WatchMotionService`
+continues with the QMI8658C accelerometer in low-power mode. A valid wrist raise
+is scheduled onto the application task, which wakes `PowerSaveTimer` and restores
+the saved user brightness. Thresholds remain in the service configuration so
+they can be tuned from physical-device traces without changing the HAL.
 
 ## Adding Product Features
 

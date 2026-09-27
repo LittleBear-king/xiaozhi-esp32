@@ -24,9 +24,10 @@ inline constexpr uint32_t kSuccessColor = 0x2FD17B;
 inline constexpr uint32_t kWarningColor = 0xF1B84B;
 inline constexpr uint32_t kDangerColor = 0xFF5F68;
 
-inline constexpr int kStatusTopOffset = 20;
-inline constexpr int kStatusSideOffset = 26;
-inline constexpr int kBrandTopOffset = 62;
+inline constexpr int kScreenCornerRadius = 34;
+inline constexpr int kStatusTopOffset = 42;
+inline constexpr int kStatusSideOffset = 50;
+inline constexpr int kBrandTopOffset = 82;
 inline constexpr int kTimeCenterOffsetY = -84;
 inline constexpr int kDateCenterOffsetY = -35;
 inline constexpr int kTalkButtonCenterOffsetY = 75;

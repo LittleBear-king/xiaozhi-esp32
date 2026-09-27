@@ -24,6 +24,7 @@ public:
 
 private:
     struct AssistantLayerVisibility {
+        bool top_bar_hidden = false;
         bool status_bar_hidden = false;
         bool emoji_box_hidden = false;
         bool preview_image_hidden = true;

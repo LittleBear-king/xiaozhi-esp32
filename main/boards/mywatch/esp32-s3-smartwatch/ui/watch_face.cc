@@ -48,7 +48,8 @@ void WatchFace::Create(lv_obj_t* parent) {
     root_ = lv_obj_create(parent);
     lv_obj_set_size(root_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_pos(root_, 0, 0);
-    lv_obj_set_style_radius(root_, 0, 0);
+    lv_obj_set_style_radius(root_, watch_ui::kScreenCornerRadius, 0);
+    lv_obj_set_style_clip_corner(root_, true, 0);
     lv_obj_set_style_border_width(root_, 0, 0);
     lv_obj_set_style_pad_all(root_, 0, 0);
     lv_obj_set_style_bg_color(root_, lv_color_hex(watch_ui::kBackgroundColor), 0);
@@ -125,6 +126,7 @@ void WatchFace::SetVisible(bool visible) {
     visible_ = visible;
     if (visible) {
         Refresh(true);
+        lv_obj_move_foreground(root_);
         lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);

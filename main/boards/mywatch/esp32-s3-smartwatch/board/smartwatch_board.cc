@@ -4,10 +4,12 @@
 #include "config.h"
 #include "controller/watch_controller.h"
 #include "hal/watch_backlight.h"
+#include "hal/watch_motion.h"
 #include "hal/watch_power.h"
 #include "mcp_server.h"
 #include "model/watch_model.h"
 #include "power_save_timer.h"
+#include "services/watch_motion_service.h"
 #include "ui/watch_display.h"
 #include "wifi_board.h"
 
@@ -20,6 +22,8 @@
 #include <esp_lvgl_port.h>
 #include <lvgl.h>
 
+#include <atomic>
+#include <memory>
 #include <utility>
 
 #define TAG "MyWatchBoard"
@@ -49,21 +53,57 @@ private:
     WatchDisplay* display_ = nullptr;
     WatchBacklight* backlight_ = nullptr;
     PowerSaveTimer* power_save_timer_ = nullptr;
+    std::unique_ptr<WatchMotion> motion_;
+    std::unique_ptr<WatchMotionService> motion_service_;
+    std::atomic<bool> display_sleeping_{false};
     bool last_discharging_ = false;
 
     void InitializePowerSaveTimer() {
-        power_save_timer_ = new PowerSaveTimer(-1, 60, 300);
+        power_save_timer_ = new PowerSaveTimer(-1, 60, -1);
         power_save_timer_->OnEnterSleepMode([this]() {
+            display_sleeping_.store(true);
+            if (motion_service_ != nullptr) {
+                motion_service_->SetEnabled(true);
+            }
             GetDisplay()->SetPowerSaveMode(true);
-            GetBacklight()->SetBrightness(20);
+            GetBacklight()->SetBrightness(0);
         });
         power_save_timer_->OnExitSleepMode([this]() {
             GetDisplay()->SetPowerSaveMode(false);
             GetBacklight()->RestoreBrightness();
+            display_sleeping_.store(false);
+            if (motion_service_ != nullptr) {
+                motion_service_->SetEnabled(false);
+            }
         });
         power_save_timer_->OnShutdownRequest([this]() { power_->PowerOff(); });
         last_discharging_ = power_->IsDischarging();
         power_save_timer_->SetEnabled(last_discharging_);
+    }
+
+    void InitializeMotion() {
+        motion_ = std::make_unique<WatchMotion>(i2c_bus_, IMU_I2C_ADDRESS);
+        if (!motion_->Initialize()) {
+            ESP_LOGW(TAG, "Raise-to-wake disabled because the IMU is unavailable");
+            motion_.reset();
+            return;
+        }
+
+        WatchMotionService::Config motion_config;
+        motion_config.face_up_z_sign = IMU_FACE_UP_Z_SIGN;
+        motion_service_ = std::make_unique<WatchMotionService>(*motion_, motion_config, [this]() {
+            Application::GetInstance().Schedule([this]() {
+                if (display_sleeping_.load() && power_save_timer_ != nullptr) {
+                    ESP_LOGI(TAG, "Wake display after wrist raise");
+                    power_save_timer_->WakeUp();
+                }
+            });
+        });
+        if (!motion_service_->Start()) {
+            ESP_LOGW(TAG, "Raise-to-wake service failed to start");
+            motion_service_.reset();
+            motion_.reset();
+        }
     }
 
     void InitializeCodecI2c() {
@@ -231,6 +271,7 @@ public:
         InitializeButtons();
         InitializeTools();
         InitializePowerSaveTimer();
+        InitializeMotion();
     }
 
     virtual AudioCodec* GetAudioCodec() override {

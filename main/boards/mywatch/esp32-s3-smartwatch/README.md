@@ -10,7 +10,8 @@ directory.
 - `board/`: hardware composition and generic `Board` capabilities
 - `controller/`: product actions and platform-event adaptation
 - `model/`: thread-safe state snapshots consumed by the UI
-- `hal/`: product-specific power and AMOLED transport
+- `hal/`: product-specific power, AMOLED, and QMI8658 transport
+- `services/`: motion algorithms and product-level sensor behavior
 - `ui/`: display adapter, watch surfaces, and visual constants
 - `docs/`: architecture and product engineering notes
 - `board.cmake`: explicit source manifest for the nested modules
@@ -34,6 +35,8 @@ transport, wake-word detection, and playback remain owned by Xiaozhi core.
 - Wi-Fi offline, connecting, and online states
 - touch and hardware-button assistant entry
 - charging-aware display sleep policy
+- low-power QMI8658 raise-to-wake detection
+- rounded-screen safe-area layout shared with the UI simulator
 - thread-safe `WatchModel` snapshots between platform callbacks and LVGL
 
 ## Build

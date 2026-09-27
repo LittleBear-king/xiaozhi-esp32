@@ -53,7 +53,7 @@ void WatchDisplay::SetupUI() {
         .on_tick = FaceTick,
         .context = this,
     };
-    watch_face_ = std::make_unique<WatchFace>(container_, model_, callbacks);
+    watch_face_ = std::make_unique<WatchFace>(lv_screen_active(), model_, callbacks);
 }
 
 void WatchDisplay::SetStatus(const char* status) {
@@ -109,6 +109,7 @@ void WatchDisplay::ApplyWatchFaceVisibility(bool visible) {
 
     if (visible) {
         CaptureAssistantLayerVisibility();
+        SetObjectHidden(top_bar_, true);
         SetObjectHidden(status_bar_, true);
         SetObjectHidden(emoji_box_, true);
         SetObjectHidden(preview_image_, true);
@@ -121,6 +122,7 @@ void WatchDisplay::ApplyWatchFaceVisibility(bool visible) {
 }
 
 void WatchDisplay::CaptureAssistantLayerVisibility() {
+    assistant_visibility_.top_bar_hidden = IsObjectHidden(top_bar_);
     assistant_visibility_.status_bar_hidden = IsObjectHidden(status_bar_);
     assistant_visibility_.emoji_box_hidden = IsObjectHidden(emoji_box_);
     assistant_visibility_.preview_image_hidden = IsObjectHidden(preview_image_);
@@ -128,6 +130,7 @@ void WatchDisplay::CaptureAssistantLayerVisibility() {
 }
 
 void WatchDisplay::RestoreAssistantLayerVisibility() {
+    SetObjectHidden(top_bar_, assistant_visibility_.top_bar_hidden);
     SetObjectHidden(status_bar_, assistant_visibility_.status_bar_hidden);
     SetObjectHidden(emoji_box_, assistant_visibility_.emoji_box_hidden);
     SetObjectHidden(preview_image_, assistant_visibility_.preview_image_hidden);
