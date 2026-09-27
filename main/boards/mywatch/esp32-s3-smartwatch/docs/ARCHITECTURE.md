@@ -13,9 +13,12 @@ Application state and Xiaozhi services
                   |
                   v
         WatchDisplay adapter
-          |              |
-          v              v
-     WatchFace       Assistant UI
+       /          |             \
+      v           v              v
+ WatchFace   WatchAppRouter   Assistant UI
+                  |
+                  v
+        Independent watch apps
 
 MyWatchBoard -> display / touch / audio / power / buttons
       |
@@ -36,10 +39,11 @@ not update LVGL directly, and a view does not read an I2C device directly.
 | Directory | Owns | Must not own |
 | --- | --- | --- |
 | `board/` | device composition, bus setup, callback wiring | widget layouts or feature algorithms |
+| `apps/` | application IDs, navigation stack, and lifecycle contract | widget layout or hardware access |
 | `controller/` | user actions and platform-event adaptation | LVGL object ownership or register access |
 | `model/` | thread-safe product state snapshots | hardware access or view logic |
 | `hal/` | product-specific device and transport adapters | application state or LVGL screens |
-| `ui/` | LVGL surfaces, display state adaptation, visual tokens | direct I2C/SPI sensor access |
+| `ui/` | LVGL surfaces, application views, display adaptation, visual tokens | direct I2C/SPI sensor access |
 | `services/` | power policy, motion, time, and notification behavior | board pin definitions or widgets |
 | `docs/` | architecture and product engineering decisions | generated output |
 
@@ -111,6 +115,29 @@ and the LVGL task. Views only consume snapshots and never query hardware.
 Normalizes battery and network events, schedules assistant and user-activity
 actions on the application task, and exposes application state to the display
 adapter. Cross-task callbacks must enter product behavior through this layer.
+
+
+### Application runtime
+
+`WatchAppRouter` owns a fixed registry and bounded back stack. Applications are
+created lazily on the LVGL task and receive `Create`, `OnResume`, `OnPause`,
+and `OnTick` events. They consume service snapshots and navigate only through
+`WatchAppNavigator`. The first applications are launcher, activity,
+notifications, settings, and tools.
+
+### Product services
+
+- `WatchTimeService` restores time from PCF85063 and writes synchronized time back.
+- `WatchHealthService` turns the shared QMI8658 stream into bounded daily activity data.
+- `WatchNotificationService` retains twelve newest notifications without unbounded queues.
+- `WatchSettingsService` owns stable NVS keys in the `watch` namespace.
+- `WatchPhoneService` validates transport-independent companion messages.
+- `WatchReliabilityService` persists boot/reset diagnostics and exposes rollback/watchdog state.
+
+The product partition table keeps two 3.875 MiB OTA slots, an 8 MiB asset
+partition, and a 128 KiB coredump partition. ESP-IDF rollback remains owned by
+the existing OTA service; MyWatch records reset context and does not mark an
+image valid early.
 
 ## Runtime Flow
 

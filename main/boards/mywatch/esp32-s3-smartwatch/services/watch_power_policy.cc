@@ -70,7 +70,14 @@ void WatchPowerPolicy::AttachMotionService(WatchMotionService* motion_service) {
 
     motion_service_ = motion_service;
     if (motion_service_ != nullptr) {
-        motion_service_->SetEnabled(display_sleeping_.load());
+        motion_service_->SetEnabled(raise_to_wake_enabled_ && display_sleeping_.load());
+    }
+}
+
+void WatchPowerPolicy::SetRaiseToWakeEnabled(bool enabled) {
+    raise_to_wake_enabled_ = enabled;
+    if (motion_service_ != nullptr) {
+        motion_service_->SetEnabled(enabled && display_sleeping_.load());
     }
 }
 
@@ -83,7 +90,7 @@ void WatchPowerPolicy::WakeDisplay() {
 void WatchPowerPolicy::EnterDisplaySleep() {
     display_sleeping_.store(true);
     if (motion_service_ != nullptr) {
-        motion_service_->SetEnabled(true);
+        motion_service_->SetEnabled(raise_to_wake_enabled_);
     }
     display_.SetPowerSaveMode(true);
     backlight_.SetBrightness(config_.sleeping_brightness);

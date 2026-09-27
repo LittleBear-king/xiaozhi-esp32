@@ -40,7 +40,12 @@ const states = {
     caption: "Check Wi-Fi and try again",
     surface: "assistant",
     network: "Offline"
-  }
+  },
+  launcher: { label: "APPS", message: "", caption: "", surface: "apps", network: "Wi-Fi" },
+  activity: { label: "ACTIVITY", message: "", caption: "", surface: "apps", network: "Wi-Fi" },
+  notifications: { label: "NOTIFICATIONS", message: "", caption: "", surface: "apps", network: "Wi-Fi" },
+  settings: { label: "SETTINGS", message: "", caption: "", surface: "apps", network: "Wi-Fi" },
+  tools: { label: "TOOLS", message: "", caption: "", surface: "apps", network: "Wi-Fi" }
 };
 
 const elements = {
@@ -50,6 +55,9 @@ const elements = {
   assistantState: document.querySelector("#assistantState"),
   assistantMessage: document.querySelector("#assistantMessage"),
   assistantCaption: document.querySelector("#assistantCaption"),
+  appView: document.querySelector("#appView"),
+  appTitle: document.querySelector("#appTitle"),
+  appContent: document.querySelector("#appContent"),
   networkStatus: document.querySelector("#networkStatus"),
   clock: document.querySelector("#clock"),
   date: document.querySelector("#date"),
@@ -82,6 +90,36 @@ function updateClock() {
   elements.date.textContent = `${weekdays[now.getDay()]}  ${calendarDate}`;
 }
 
+function renderApp(name) {
+  const pages = {
+    launcher: `<div class="app-grid">
+      <button class="app-tile" data-app="activity">ACTIVITY</button>
+      <button class="app-tile" data-app="notifications">NOTICES</button>
+      <button class="app-tile" data-app="settings">SETTINGS</button>
+      <button class="app-tile" data-app="tools">TOOLS</button>
+      <button class="app-tile" data-app="connecting">AI</button>
+      <button class="app-tile" data-app="idle">WATCH FACE</button>
+    </div>`,
+    activity: `<div class="metric">TODAY<strong>6,842</strong>STEPS</div>
+      <div class="metric"><strong>4.78 km</strong>DISTANCE</div>
+      <div class="metric"><strong>273.6 kcal</strong>ENERGY</div>`,
+    notifications: `<article class="notice-card"><strong>Calendar · Design review</strong>Starts in 10 minutes</article>
+      <article class="notice-card"><strong>Phone · Connected</strong>Companion sync is active</article>`,
+    settings: `<div class="settings-list">
+      <button class="setting-row"><span>Raise to wake</span><strong>ON</strong></button>
+      <button class="setting-row"><span>Do not disturb</span><strong>OFF</strong></button>
+      <button class="setting-row"><span>Clock format</span><strong>24H</strong></button>
+      <button class="setting-row"><span>Brightness</span><strong>75%</strong></button>
+    </div>`,
+    tools: `<div class="system-row"><strong>STOPWATCH · 00:00.0</strong>Tap on device to start</div>
+      <div class="system-row"><strong>RTC READY</strong>System time synchronized</div>
+      <div class="system-row"><strong>PHONE OFFLINE</strong>Weather, music and find phone need pairing</div>
+      <div class="system-row"><strong>WATCHDOG ON</strong>OTA rollback protected</div>`
+  };
+  elements.appTitle.textContent = states[name].label;
+  elements.appContent.innerHTML = pages[name] || pages.launcher;
+}
+
 function setState(nextState) {
   if (!states[nextState]) return;
   window.clearTimeout(pendingTransition);
@@ -89,11 +127,14 @@ function setState(nextState) {
 
   const state = states[nextState];
   const isIdle = nextState === "idle";
+  const isApp = state.surface === "apps";
   const message = nextState === "notification" ? elements.messageInput.value : state.message;
 
   elements.watchScreen.dataset.state = nextState;
   elements.watchFace.classList.toggle("is-hidden", !isIdle);
-  elements.assistantView.classList.toggle("is-hidden", isIdle);
+  elements.assistantView.classList.toggle("is-hidden", isIdle || isApp);
+  elements.appView.classList.toggle("is-hidden", !isApp);
+  if (isApp) renderApp(nextState);
   elements.assistantState.textContent = state.label;
   elements.assistantMessage.textContent = message;
   elements.assistantCaption.textContent = state.caption;
@@ -119,6 +160,15 @@ function updateBattery() {
 document.querySelector("#stateGrid").addEventListener("click", (event) => {
   const button = event.target.closest("[data-state]");
   if (button) setState(button.dataset.state);
+});
+
+document.querySelector("#appsButton").addEventListener("click", () => setState("launcher"));
+document.querySelector("#appBack").addEventListener("click", () => {
+  setState(currentState === "launcher" ? "idle" : "launcher");
+});
+elements.appContent.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-app]");
+  if (target) setState(target.dataset.app);
 });
 
 document.querySelector("#talkButton").addEventListener("click", () => {

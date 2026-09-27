@@ -12,7 +12,9 @@ directory.
 - `model/`: thread-safe state snapshots consumed by the UI
 - `hal/`: product-specific power, AMOLED, and QMI8658 transport
 - `services/`: power policy, motion algorithms, and product behavior
-- `ui/`: display adapter, watch surfaces, and visual constants
+- `apps/`: application contract, fixed-capacity router, and lifecycle
+- `ui/`: display adapter, watch surfaces, application views, and visual constants
+- `partitions/`: product OTA and crash-dump partition layout
 - `docs/`: architecture decisions, open-source references, and product roadmap
 - `board.cmake`: explicit source manifest for the nested modules
 - `config.h` / `config.json`: board pins, identity, and build variants
@@ -39,6 +41,14 @@ transport, wake-word detection, and playback remain owned by Xiaozhi core.
 - low-power QMI8658 raise-to-wake detection
 - rounded-screen safe-area layout shared with the UI simulator
 - thread-safe `WatchModel` snapshots between platform callbacks and LVGL
+- fixed-capacity application router with lifecycle callbacks and bounded history
+- independent activity, notification, settings, and tools applications
+- PCF85063 RTC restore and network-time writeback
+- daily QMI8658 step, distance, energy, and active-minute estimates
+- bounded notification center with do-not-disturb behavior
+- persistent brightness, clock format, and raise-to-wake settings
+- OTA rollback partitions, flash coredumps, watchdog status, and reset diagnostics
+- transport-neutral validated companion notification protocol
 
 ## Build
 

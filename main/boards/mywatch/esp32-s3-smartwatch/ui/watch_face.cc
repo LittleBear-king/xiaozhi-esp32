@@ -11,8 +11,9 @@ namespace {
 constexpr const char* kWeekdays[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
 }
 
-WatchFace::WatchFace(lv_obj_t* parent, WatchModel& model, const Callbacks& callbacks)
-    : model_(model), callbacks_(callbacks) {
+WatchFace::WatchFace(lv_obj_t* parent, WatchModel& model, WatchSettingsService& settings,
+                     const Callbacks& callbacks)
+    : model_(model), settings_(settings), callbacks_(callbacks) {
     Create(parent);
     Refresh(true);
     refresh_timer_ = lv_timer_create(RefreshTimerCallback, watch_ui::kRefreshPeriodMs, this);
@@ -41,6 +42,13 @@ void WatchFace::TalkButtonCallback(lv_event_t* event) {
     auto* face = static_cast<WatchFace*>(lv_event_get_user_data(event));
     if (face->callbacks_.on_talk != nullptr) {
         face->callbacks_.on_talk(face->callbacks_.context);
+    }
+}
+
+void WatchFace::AppsButtonCallback(lv_event_t* event) {
+    auto* face = static_cast<WatchFace*>(lv_event_get_user_data(event));
+    if (face->callbacks_.on_apps != nullptr) {
+        face->callbacks_.on_apps(face->callbacks_.context);
     }
 }
 
@@ -114,7 +122,21 @@ void WatchFace::Create(lv_obj_t* parent) {
     lv_obj_set_style_text_font(hint_label, &BUILTIN_TEXT_FONT, 0);
     lv_obj_set_style_text_color(hint_label, lv_color_hex(watch_ui::kHintTextColor), 0);
     lv_obj_set_style_text_letter_space(hint_label, 2, 0);
-    lv_obj_align(hint_label, LV_ALIGN_BOTTOM_MID, 0, watch_ui::kHintBottomOffset);
+    lv_obj_align(hint_label, LV_ALIGN_BOTTOM_MID, 0, -82);
+
+    auto* apps_button = lv_button_create(root_);
+    lv_obj_set_size(apps_button, 120, 44);
+    lv_obj_align(apps_button, LV_ALIGN_BOTTOM_MID, 0, -27);
+    lv_obj_set_style_radius(apps_button, 16, 0);
+    lv_obj_set_style_bg_color(apps_button, lv_color_hex(0x20242A), 0);
+    lv_obj_set_style_border_width(apps_button, 1, 0);
+    lv_obj_set_style_border_color(apps_button, lv_color_hex(0x343A41), 0);
+    lv_obj_add_event_cb(apps_button, AppsButtonCallback, LV_EVENT_CLICKED, this);
+    auto* apps_label = lv_label_create(apps_button);
+    lv_label_set_text(apps_label, "APPS");
+    lv_obj_set_style_text_font(apps_label, &BUILTIN_TEXT_FONT, 0);
+    lv_obj_set_style_text_color(apps_label, lv_color_white(), 0);
+    lv_obj_center(apps_label);
 
     lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
 }
@@ -158,8 +180,9 @@ void WatchFace::RefreshTime(bool force) {
     }
 
     if (force || time_info.tm_min != last_minute_) {
-        char time_text[8];
-        strftime(time_text, sizeof(time_text), "%H:%M", &time_info);
+        char time_text[12];
+        strftime(time_text, sizeof(time_text),
+                 settings_.GetSnapshot().use_24_hour ? "%H:%M" : "%I:%M", &time_info);
         lv_label_set_text(time_label_, time_text);
         last_minute_ = time_info.tm_min;
     }

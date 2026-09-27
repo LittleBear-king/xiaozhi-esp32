@@ -8,7 +8,11 @@
             "sdkconfig_append": [
                 "CONFIG_USE_WECHAT_MESSAGE_STYLE=n",
                 "CONFIG_BOARD_TYPE_MYWATCH_ESP32_S3_SMARTWATCH=y",
-                "CONFIG_USE_DEVICE_AEC=y"
+                "CONFIG_USE_DEVICE_AEC=y",
+                "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"main/boards/mywatch/esp32-s3-smartwatch/partitions/mywatch_16m.csv\"",
+                "CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y",
+                "CONFIG_ESP_COREDUMP_CHECK_BOOT=y",
+                "CONFIG_ESP_COREDUMP_FLASH_NO_OVERWRITE=y"
             ]
         }
     ]

@@ -11,6 +11,8 @@ The simulator models the product states that affect the watch display:
 - speaking
 - notification
 - error
+- application launcher and lifecycle navigation
+- activity, notifications, settings, and tools screens
 
 Use it to review layout, content hierarchy, colors, and transitions before
 implementing a screen in LVGL. Firmware behavior remains authoritative. When a

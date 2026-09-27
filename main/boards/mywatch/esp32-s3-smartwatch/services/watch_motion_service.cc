@@ -16,8 +16,12 @@ constexpr uint32_t kTaskStackSize = 3072;
 constexpr UBaseType_t kTaskPriority = 2;
 }  // namespace
 
-WatchMotionService::WatchMotionService(WatchMotion& motion, Config config, RaiseCallback on_raise)
-    : motion_(motion), config_(config), on_raise_(std::move(on_raise)) {}
+WatchMotionService::WatchMotionService(WatchMotion& motion, Config config, RaiseCallback on_raise,
+                                       SampleCallback on_sample)
+    : motion_(motion),
+      config_(config),
+      on_raise_(std::move(on_raise)),
+      on_sample_(std::move(on_sample)) {}
 
 WatchMotionService::~WatchMotionService() { Stop(); }
 
@@ -52,7 +56,7 @@ void WatchMotionService::Stop() {
 }
 
 void WatchMotionService::SetEnabled(bool enabled) {
-    enabled_.store(enabled);
+    raise_enabled_.store(enabled);
     TaskHandle_t task = task_.load();
     if (task != nullptr) {
         xTaskNotifyGive(task);
@@ -66,16 +70,18 @@ void WatchMotionService::TaskEntry(void* context) {
 void WatchMotionService::TaskLoop() {
     ESP_LOGI(TAG, "Raise-to-wake detection started");
     while (running_.load()) {
-        if (!enabled_.load()) {
-            filter_ready_ = false;
-            raise_armed_ = false;
-            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-            continue;
-        }
-
         WatchAcceleration acceleration;
         if (motion_.ReadAcceleration(acceleration)) {
-            ProcessSample(acceleration, esp_timer_get_time());
+            const int64_t now_us = esp_timer_get_time();
+            if (on_sample_) {
+                on_sample_(acceleration, now_us);
+            }
+            if (raise_enabled_.load()) {
+                ProcessSample(acceleration, now_us);
+            } else {
+                filter_ready_ = false;
+                raise_armed_ = false;
+            }
         }
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(config_.sample_period_ms));
     }

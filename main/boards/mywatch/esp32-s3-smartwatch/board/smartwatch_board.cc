@@ -6,10 +6,17 @@
 #include "hal/watch_backlight.h"
 #include "hal/watch_motion.h"
 #include "hal/watch_power.h"
+#include "hal/watch_rtc.h"
 #include "mcp_server.h"
 #include "model/watch_model.h"
+#include "services/watch_health_service.h"
 #include "services/watch_motion_service.h"
+#include "services/watch_notification_service.h"
+#include "services/watch_phone_service.h"
 #include "services/watch_power_policy.h"
+#include "services/watch_reliability_service.h"
+#include "services/watch_settings_service.h"
+#include "services/watch_time_service.h"
 #include "ui/watch_display.h"
 #include "wifi_board.h"
 
@@ -22,7 +29,9 @@
 #include <esp_lvgl_port.h>
 #include <lvgl.h>
 
+#include <cstdio>
 #include <memory>
+#include <string>
 #include <utility>
 
 #define TAG "MyWatchBoard"
@@ -48,11 +57,18 @@ private:
     WatchPower* power_ = nullptr;
     WatchModel watch_model_;
     WatchController watch_controller_;
+    WatchHealthService health_service_;
+    WatchNotificationService notification_service_;
+    WatchSettingsService settings_service_;
+    WatchReliabilityService reliability_service_;
+    WatchPhoneService phone_service_;
     Button boot_button_;
     WatchDisplay* display_ = nullptr;
     WatchBacklight* backlight_ = nullptr;
     std::unique_ptr<WatchMotion> motion_;
     std::unique_ptr<WatchMotionService> motion_service_;
+    std::unique_ptr<WatchRtc> rtc_;
+    std::unique_ptr<WatchTimeService> time_service_;
     std::unique_ptr<WatchPowerPolicy> power_policy_;
 
     void InitializePowerPolicy() {
@@ -61,6 +77,21 @@ private:
                                                            [this]() { power_->PowerOff(); });
         power_policy_->Start(power_->IsDischarging());
         watch_controller_.AttachPowerPolicy(*power_policy_);
+    }
+
+    void InitializeTime() {
+        rtc_ = std::make_unique<WatchRtc>(i2c_bus_, RTC_I2C_ADDRESS);
+        time_service_ = std::make_unique<WatchTimeService>(*rtc_);
+        if (!time_service_->Start()) {
+            ESP_LOGW(TAG, "Time service failed to start");
+        }
+    }
+
+    void InitializeSettings() {
+        settings_service_.SetChangedCallback([this](const WatchSettingsSnapshot& settings) {
+            power_policy_->SetRaiseToWakeEnabled(settings.raise_to_wake);
+            backlight_->SetBrightness(settings.brightness, true);
+        });
     }
 
     void InitializeMotion() {
@@ -73,8 +104,12 @@ private:
 
         WatchMotionService::Config motion_config;
         motion_config.face_up_z_sign = IMU_FACE_UP_Z_SIGN;
+        health_service_.SetSensorAvailable(true);
         motion_service_ = std::make_unique<WatchMotionService>(
-            *motion_, motion_config, [this]() { watch_controller_.NotifyUserActivity(); });
+            *motion_, motion_config, [this]() { watch_controller_.NotifyUserActivity(); },
+            [this](const WatchAcceleration& acceleration, int64_t now_us) {
+                health_service_.ProcessAcceleration(acceleration, now_us);
+            });
         if (!motion_service_->Start()) {
             ESP_LOGW(TAG, "Raise-to-wake service failed to start");
             motion_service_.reset();
@@ -181,7 +216,9 @@ private:
         esp_lcd_panel_disp_on_off(panel, true);
         display_ = new WatchDisplay(
             panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y,
-            DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY, watch_model_, watch_controller_);
+            DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY, watch_model_, watch_controller_,
+            health_service_, notification_service_, settings_service_, *time_service_,
+            phone_service_, reliability_service_);
         backlight_ = new WatchBacklight(panel_io, display_);
         backlight_->RestoreBrightness();
     }
@@ -236,12 +273,42 @@ private:
                                EnterWifiConfigMode();
                                return true;
                            });
+        mcp_server.AddTool("self.watch.get_activity",
+                           "Get today's step, distance, calorie, and active-minute summary.",
+                           PropertyList(), [this](const PropertyList& properties) -> ReturnValue {
+                               const auto value = health_service_.GetSnapshot();
+                               char result[160];
+                               snprintf(result, sizeof(result),
+                                        "{\"steps\":%lu,\"distance_m\":%lu,\"calories_tenths\":%lu,"
+                                        "\"active_minutes\":%lu}",
+                                        static_cast<unsigned long>(value.steps),
+                                        static_cast<unsigned long>(value.distance_m),
+                                        static_cast<unsigned long>(value.calories_tenths),
+                                        static_cast<unsigned long>(value.active_minutes));
+                               return std::string(result);
+                           });
+        mcp_server.AddTool(
+            "self.watch.add_notification", "Add a short item to the watch notification center.",
+            PropertyList({Property("source", kPropertyTypeString),
+                          Property("title", kPropertyTypeString),
+                          Property("body", kPropertyTypeString)}),
+            [this](const PropertyList& properties) -> ReturnValue {
+                const auto& source = properties["source"].value<std::string>();
+                const auto& title = properties["title"].value<std::string>();
+                const auto& body = properties["body"].value<std::string>();
+                notification_service_.Push(source.c_str(), title.c_str(), body.c_str());
+                return true;
+            });
     }
 
 public:
-    MyWatchBoard() : watch_controller_(watch_model_), boot_button_(BOOT_BUTTON_GPIO) {
+    MyWatchBoard()
+        : watch_controller_(watch_model_),
+          phone_service_(notification_service_),
+          boot_button_(BOOT_BUTTON_GPIO) {
         InitializeCodecI2c();
         InitializePower();
+        InitializeTime();
         watch_controller_.UpdateBattery(power_->GetBatteryLevel(), power_->IsCharging(),
                                         power_->IsDischarging());
         InitializeSpi();
@@ -251,6 +318,7 @@ public:
         InitializeTools();
         InitializePowerPolicy();
         InitializeMotion();
+        InitializeSettings();
     }
 
     virtual AudioCodec* GetAudioCodec() override {

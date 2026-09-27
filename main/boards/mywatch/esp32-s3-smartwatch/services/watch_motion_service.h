@@ -23,8 +23,10 @@ public:
     };
 
     using RaiseCallback = std::function<void()>;
+    using SampleCallback = std::function<void(const WatchAcceleration&, int64_t)>;
 
-    WatchMotionService(WatchMotion& motion, Config config, RaiseCallback on_raise);
+    WatchMotionService(WatchMotion& motion, Config config, RaiseCallback on_raise,
+                       SampleCallback on_sample = {});
     ~WatchMotionService();
 
     bool Start();
@@ -39,8 +41,9 @@ private:
     WatchMotion& motion_;
     Config config_;
     RaiseCallback on_raise_;
+    SampleCallback on_sample_;
     std::atomic<bool> running_{false};
-    std::atomic<bool> enabled_{false};
+    std::atomic<bool> raise_enabled_{false};
     std::atomic<TaskHandle_t> task_{nullptr};
     bool filter_ready_ = false;
     bool raise_armed_ = false;

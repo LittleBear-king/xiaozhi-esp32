@@ -1,22 +1,45 @@
 #include "watch_display.h"
 
+#include "apps/watch_app_router.h"
 #include "assets/lang_config.h"
 #include "controller/watch_controller.h"
+#include "services/watch_health_service.h"
+#include "services/watch_notification_service.h"
+#include "services/watch_phone_service.h"
+#include "services/watch_reliability_service.h"
+#include "services/watch_settings_service.h"
+#include "services/watch_time_service.h"
+#include "ui/apps/watch_activity_app.h"
+#include "ui/apps/watch_launcher_app.h"
+#include "ui/apps/watch_notifications_app.h"
+#include "ui/apps/watch_settings_app.h"
+#include "ui/apps/watch_tools_app.h"
 #include "watch_face.h"
 
 #include <cstring>
+#include <utility>
 
 WatchDisplay::WatchDisplay(esp_lcd_panel_io_handle_t io_handle, esp_lcd_panel_handle_t panel_handle,
                            int width, int height, int offset_x, int offset_y, bool mirror_x,
                            bool mirror_y, bool swap_xy, WatchModel& model,
-                           WatchController& controller)
+                           WatchController& controller, WatchHealthService& health,
+                           WatchNotificationService& notifications, WatchSettingsService& settings,
+                           WatchTimeService& time, WatchPhoneService& phone,
+                           WatchReliabilityService& reliability)
     : SpiLcdDisplay(io_handle, panel_handle, width, height, offset_x, offset_y, mirror_x, mirror_y,
                     swap_xy),
       model_(model),
-      controller_(controller) {}
+      controller_(controller),
+      health_(health),
+      notifications_(notifications),
+      settings_(settings),
+      time_(time),
+      phone_(phone),
+      reliability_(reliability) {}
 
 WatchDisplay::~WatchDisplay() {
     DisplayLockGuard lock(this);
+    app_router_.reset();
     watch_face_.reset();
 }
 
@@ -30,6 +53,10 @@ void WatchDisplay::RounderEventCallback(lv_event_t* event) {
 
 void WatchDisplay::TalkRequested(void* context) {
     static_cast<WatchDisplay*>(context)->HandleTalkRequested();
+}
+
+void WatchDisplay::AppsRequested(void* context) {
+    static_cast<WatchDisplay*>(context)->HandleAppsRequested();
 }
 
 void WatchDisplay::FaceTick(void* context) {
@@ -50,10 +77,23 @@ void WatchDisplay::SetupUI() {
 
     WatchFace::Callbacks callbacks = {
         .on_talk = TalkRequested,
+        .on_apps = AppsRequested,
         .on_tick = FaceTick,
         .context = this,
     };
-    watch_face_ = std::make_unique<WatchFace>(lv_screen_active(), model_, callbacks);
+    watch_face_ = std::make_unique<WatchFace>(lv_screen_active(), model_, settings_, callbacks);
+
+    WatchAppRouter::Callbacks router_callbacks = {
+        .on_close = [this]() { HandleAppsClosed(); },
+        .on_assistant = [this]() { HandleTalkRequested(); },
+    };
+    app_router_ = std::make_unique<WatchAppRouter>(std::move(router_callbacks));
+    app_router_->Attach(lv_screen_active());
+    app_router_->Register(std::make_unique<WatchLauncherApp>());
+    app_router_->Register(std::make_unique<WatchActivityApp>(health_));
+    app_router_->Register(std::make_unique<WatchNotificationsApp>(notifications_));
+    app_router_->Register(std::make_unique<WatchSettingsApp>(settings_));
+    app_router_->Register(std::make_unique<WatchToolsApp>(time_, phone_, reliability_));
 }
 
 void WatchDisplay::SetStatus(const char* status) {
@@ -62,16 +102,47 @@ void WatchDisplay::SetStatus(const char* status) {
 }
 
 void WatchDisplay::ShowNotification(const char* notification, int duration_ms) {
+    notifications_.Push("System", "Notification", notification);
+    if (settings_.GetSnapshot().do_not_disturb) {
+        return;
+    }
     SpiLcdDisplay::ShowNotification(notification, duration_ms);
     SetWatchFaceVisible(false);
 }
 
 void WatchDisplay::HandleTalkRequested() {
-    ApplyWatchFaceVisibility(false);
+    const bool from_apps = app_router_ != nullptr && app_router_->IsVisible();
+    if (app_router_ != nullptr) {
+        app_router_->Hide();
+    }
+    if (from_apps) {
+        RestoreAssistantLayerVisibility();
+    } else {
+        ApplyWatchFaceVisibility(false);
+    }
     controller_.RequestTalk();
 }
 
+void WatchDisplay::HandleAppsRequested() {
+    if (watch_face_ == nullptr || app_router_ == nullptr)
+        return;
+    SetObjectHidden(top_bar_, true);
+    SetObjectHidden(status_bar_, true);
+    SetObjectHidden(emoji_box_, true);
+    SetObjectHidden(preview_image_, true);
+    SetObjectHidden(bottom_bar_, true);
+    watch_face_->SetVisible(false);
+    app_router_->Show();
+}
+
+void WatchDisplay::HandleAppsClosed() { ApplyWatchFaceVisibility(true); }
+
 void WatchDisplay::MaybeRestoreIdleFace() {
+    if (app_router_ != nullptr) {
+        app_router_->Tick();
+        if (app_router_->IsVisible())
+            return;
+    }
     if (!controller_.IsIdle() || notification_label_ == nullptr || status_label_ == nullptr ||
         !lv_obj_has_flag(notification_label_, LV_OBJ_FLAG_HIDDEN)) {
         return;
@@ -94,6 +165,9 @@ bool WatchDisplay::IsIdleFaceStatus(const char* status) const {
 
 void WatchDisplay::UpdateWatchFaceVisibility(const char* status) {
     const bool show = controller_.IsIdle() && IsIdleFaceStatus(status);
+    if (show && app_router_ != nullptr && app_router_->IsVisible()) {
+        return;
+    }
     SetWatchFaceVisible(show);
 }
 
@@ -108,7 +182,12 @@ void WatchDisplay::ApplyWatchFaceVisibility(bool visible) {
     }
 
     if (visible) {
-        CaptureAssistantLayerVisibility();
+        const bool from_apps = app_router_ != nullptr && app_router_->IsVisible();
+        if (app_router_ != nullptr)
+            app_router_->Hide();
+        if (!from_apps) {
+            CaptureAssistantLayerVisibility();
+        }
         SetObjectHidden(top_bar_, true);
         SetObjectHidden(status_bar_, true);
         SetObjectHidden(emoji_box_, true);
@@ -117,6 +196,8 @@ void WatchDisplay::ApplyWatchFaceVisibility(bool visible) {
         watch_face_->SetVisible(true);
     } else {
         watch_face_->SetVisible(false);
+        if (app_router_ != nullptr)
+            app_router_->Hide();
         RestoreAssistantLayerVisibility();
     }
 }

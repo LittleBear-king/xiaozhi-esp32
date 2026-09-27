@@ -36,6 +36,7 @@
                 <span>AI</span>
               </button>
               <p class="talk-hint">TAP TO TALK</p>
+              <button class="apps-button" id="appsButton" type="button">APPS</button>
             </section>
 
             <section class="assistant-view is-hidden" id="assistantView" aria-live="polite">
@@ -45,6 +46,14 @@
               </div>
               <p class="assistant-message" id="assistantMessage">Listening...</p>
               <p class="assistant-caption" id="assistantCaption">Speak naturally</p>
+            </section>
+
+            <section class="app-view is-hidden" id="appView">
+              <header class="app-header">
+                <button id="appBack" type="button" aria-label="Back">&lt;</button>
+                <h2 id="appTitle">APPS</h2>
+              </header>
+              <div class="app-content" id="appContent"></div>
             </section>
           </div>
         </div>
@@ -60,6 +69,11 @@
             <button type="button" data-state="speaking">Speaking</button>
             <button type="button" data-state="notification">Notification</button>
             <button type="button" data-state="error">Error</button>
+            <button type="button" data-state="launcher">Apps</button>
+            <button type="button" data-state="activity">Activity</button>
+            <button type="button" data-state="notifications">Notifications</button>
+            <button type="button" data-state="settings">Settings</button>
+            <button type="button" data-state="tools">Tools</button>
           </div>
         </section>
 

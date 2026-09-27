@@ -27,6 +27,7 @@ public:
     void Start(bool discharging);
     void UpdatePowerSource(bool discharging);
     void AttachMotionService(WatchMotionService* motion_service);
+    void SetRaiseToWakeEnabled(bool enabled);
     void WakeDisplay();
     bool IsDisplaySleeping() const { return display_sleeping_.load(); }
 
@@ -40,6 +41,7 @@ private:
     ShutdownCallback on_shutdown_;
     std::unique_ptr<PowerSaveTimer> timer_;
     WatchMotionService* motion_service_ = nullptr;
+    bool raise_to_wake_enabled_ = true;
     std::atomic<bool> display_sleeping_{false};
     bool started_ = false;
     bool discharging_ = false;

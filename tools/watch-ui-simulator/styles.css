@@ -188,7 +188,8 @@ h1 {
 }
 
 .watch-face,
-.assistant-view {
+.assistant-view,
+.app-view {
   position: absolute;
   inset: 0;
 }
@@ -499,4 +500,111 @@ input[type="range"] {
     border-top: 1px solid var(--line);
     border-left: 0;
   }
+}
+
+
+.apps-button {
+  position: absolute;
+  bottom: 26px;
+  width: 120px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-strong);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.talk-hint {
+  margin-bottom: 82px;
+}
+
+.app-view {
+  padding: 34px 30px 28px;
+  background: #000;
+}
+
+.app-header {
+  height: 54px;
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+}
+
+.app-header button {
+  width: 46px;
+  height: 38px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--panel-strong);
+  cursor: pointer;
+}
+
+.app-header h2 {
+  margin: 0;
+  text-align: center;
+  font-size: 17px;
+}
+
+.app-content {
+  height: calc(100% - 70px);
+  margin-top: 16px;
+}
+
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.app-tile,
+.setting-row {
+  min-height: 82px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel-strong);
+  cursor: pointer;
+}
+
+.metric {
+  padding: 12px 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.metric strong {
+  display: block;
+  color: var(--text);
+  font-size: 28px;
+}
+
+.notice-card,
+.system-row {
+  margin-bottom: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-strong);
+  color: var(--muted);
+}
+
+.notice-card strong,
+.system-row strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.settings-list {
+  display: grid;
+  gap: 10px;
+}
+
+.setting-row {
+  min-height: 62px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
