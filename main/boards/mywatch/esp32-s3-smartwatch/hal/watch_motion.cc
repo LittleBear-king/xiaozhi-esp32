@@ -64,6 +64,8 @@ bool WatchMotion::ReadAcceleration(WatchAcceleration& acceleration) {
         return false;
     }
 
-    return qmi8658_read_accel_mg(&impl_->device, &acceleration.x_mg, &acceleration.y_mg,
-                                 &acceleration.z_mg) == ESP_OK;
+    // The Waveshare 2.0.1 header declares qmi8658_read_accel_mg(), but the component does
+    // not export it. The generic read uses mg after qmi8658_set_accel_unit_mg() above.
+    return qmi8658_read_accel(&impl_->device, &acceleration.x_mg, &acceleration.y_mg,
+                              &acceleration.z_mg) == ESP_OK;
 }
