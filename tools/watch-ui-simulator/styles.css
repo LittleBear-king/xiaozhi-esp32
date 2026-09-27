@@ -368,6 +368,21 @@ h1 {
   border-bottom: 0;
 }
 
+.action-button {
+  width: 100%;
+  margin: 0 0 18px;
+  padding: 11px 14px;
+  border: 1px solid var(--primary-soft);
+  border-radius: 10px;
+  background: rgba(49, 92, 255, 0.16);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.action-button:hover {
+  background: rgba(49, 92, 255, 0.28);
+}
+
 .control-section h2 {
   margin-bottom: 14px;
   font-size: 13px;

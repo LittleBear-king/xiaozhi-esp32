@@ -9,7 +9,7 @@
 class WatchSettingsApp final : public WatchAppBase {
 public:
     explicit WatchSettingsApp(WatchSettingsService& settings)
-        : WatchAppBase("SETTINGS"), settings_(settings) {}
+        : WatchAppBase("设置"), settings_(settings) {}
     WatchAppId Id() const override { return WatchAppId::kSettings; }
 
 protected:

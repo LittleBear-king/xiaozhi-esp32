@@ -20,13 +20,13 @@ void WatchSettingsApp::BuildContent(lv_obj_t* content) {
 void WatchSettingsApp::Refresh() {
     const auto value = settings_.GetSnapshot();
     lv_label_set_text(labels_[0],
-                      value.raise_to_wake ? "RAISE TO WAKE     ON" : "RAISE TO WAKE     OFF");
+                      value.raise_to_wake ? "抬腕亮屏        开" : "抬腕亮屏        关");
     lv_label_set_text(labels_[1],
-                      value.do_not_disturb ? "DO NOT DISTURB    ON" : "DO NOT DISTURB    OFF");
+                      value.do_not_disturb ? "勿扰模式        开" : "勿扰模式        关");
     lv_label_set_text(labels_[2],
-                      value.use_24_hour ? "CLOCK FORMAT      24H" : "CLOCK FORMAT      12H");
+                      value.use_24_hour ? "时间格式     24小时" : "时间格式     12小时");
     char text[40];
-    snprintf(text, sizeof(text), "BRIGHTNESS        %u%%", value.brightness);
+    snprintf(text, sizeof(text), "屏幕亮度        %u%%", value.brightness);
     lv_label_set_text(labels_[3], text);
 }
 

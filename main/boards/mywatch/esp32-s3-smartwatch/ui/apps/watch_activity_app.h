@@ -6,8 +6,7 @@
 
 class WatchActivityApp final : public WatchAppBase {
 public:
-    explicit WatchActivityApp(WatchHealthService& health)
-        : WatchAppBase("ACTIVITY"), health_(health) {}
+    explicit WatchActivityApp(WatchHealthService& health) : WatchAppBase("运动"), health_(health) {}
     WatchAppId Id() const override { return WatchAppId::kActivity; }
     void OnTick() override { Refresh(); }
 

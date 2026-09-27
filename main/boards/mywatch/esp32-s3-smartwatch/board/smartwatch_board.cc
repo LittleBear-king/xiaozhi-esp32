@@ -103,7 +103,6 @@ private:
         }
 
         WatchMotionService::Config motion_config;
-        motion_config.face_up_z_sign = IMU_FACE_UP_Z_SIGN;
         health_service_.SetSensorAvailable(true);
         motion_service_ = std::make_unique<WatchMotionService>(
             *motion_, motion_config, [this]() { watch_controller_.NotifyUserActivity(); },

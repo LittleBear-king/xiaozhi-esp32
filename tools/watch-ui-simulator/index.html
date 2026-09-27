@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MyWatch UI Simulator</title>
+  <title>MyWatch UI 模拟器</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,16 +11,16 @@
     <header class="toolbar">
       <div>
         <p class="eyebrow">MYWATCH / 410 x 502</p>
-        <h1>UI Simulator</h1>
+        <h1>UI 模拟器</h1>
       </div>
-      <div class="runtime-status"><span class="runtime-dot"></span>Interactive preview</div>
+      <div class="runtime-status"><span class="runtime-dot"></span>交互式预览</div>
     </header>
 
     <section class="simulator-layout">
-      <div class="device-stage" aria-label="Watch preview">
+      <div class="device-stage" aria-label="手表预览">
         <div class="watch-shell">
-          <button class="crown" id="crownButton" type="button" title="Return to watch face"
-                  aria-label="Return to watch face"></button>
+          <button class="crown" id="crownButton" type="button" title="返回表盘"
+                  aria-label="返回表盘"></button>
           <div class="watch-screen" id="watchScreen">
             <div class="status-strip">
               <span id="networkStatus">Wi-Fi</span>
@@ -32,26 +32,26 @@
               <p class="brand">MYWATCH</p>
               <time class="clock" id="clock">09:41</time>
               <p class="date" id="date">2026-09-26</p>
-              <button class="talk-button" id="talkButton" type="button" aria-label="Start AI chat">
+              <button class="talk-button" id="talkButton" type="button" aria-label="开始 AI 对话">
                 <span>AI</span>
               </button>
-              <p class="talk-hint">TAP TO TALK</p>
-              <button class="apps-button" id="appsButton" type="button">APPS</button>
+              <p class="talk-hint">点击开始对话</p>
+              <button class="apps-button" id="appsButton" type="button">应用</button>
             </section>
 
             <section class="assistant-view is-hidden" id="assistantView" aria-live="polite">
-              <p class="assistant-state" id="assistantState">LISTENING</p>
+              <p class="assistant-state" id="assistantState">倾听中</p>
               <div class="voice-visual" id="voiceVisual" aria-hidden="true">
                 <span></span><span></span><span></span><span></span><span></span>
               </div>
-              <p class="assistant-message" id="assistantMessage">Listening...</p>
-              <p class="assistant-caption" id="assistantCaption">Speak naturally</p>
+              <p class="assistant-message" id="assistantMessage">我在听……</p>
+              <p class="assistant-caption" id="assistantCaption">请自然说话</p>
             </section>
 
             <section class="app-view is-hidden" id="appView">
               <header class="app-header">
-                <button id="appBack" type="button" aria-label="Back">&lt;</button>
-                <h2 id="appTitle">APPS</h2>
+                <button id="appBack" type="button" aria-label="返回">&lt;</button>
+                <h2 id="appTitle">应用</h2>
               </header>
               <div class="app-content" id="appContent"></div>
             </section>
@@ -59,47 +59,49 @@
         </div>
       </div>
 
-      <aside class="control-panel" aria-label="Simulator controls">
+      <aside class="control-panel" aria-label="模拟器控制面板">
         <section class="control-section">
-          <h2>Device state</h2>
+          <h2>设备状态</h2>
           <div class="state-grid" id="stateGrid">
-            <button type="button" data-state="idle" class="is-active">Idle</button>
-            <button type="button" data-state="connecting">Connecting</button>
-            <button type="button" data-state="listening">Listening</button>
-            <button type="button" data-state="speaking">Speaking</button>
-            <button type="button" data-state="notification">Notification</button>
-            <button type="button" data-state="error">Error</button>
-            <button type="button" data-state="launcher">Apps</button>
-            <button type="button" data-state="activity">Activity</button>
-            <button type="button" data-state="notifications">Notifications</button>
-            <button type="button" data-state="settings">Settings</button>
-            <button type="button" data-state="tools">Tools</button>
+            <button type="button" data-state="idle" class="is-active">表盘</button>
+            <button type="button" data-state="sleeping">息屏</button>
+            <button type="button" data-state="connecting">连接中</button>
+            <button type="button" data-state="listening">倾听中</button>
+            <button type="button" data-state="speaking">回复中</button>
+            <button type="button" data-state="notification">通知</button>
+            <button type="button" data-state="error">错误</button>
+            <button type="button" data-state="launcher">应用</button>
+            <button type="button" data-state="activity">运动</button>
+            <button type="button" data-state="notifications">通知中心</button>
+            <button type="button" data-state="settings">设置</button>
+            <button type="button" data-state="tools">工具</button>
           </div>
         </section>
 
         <section class="control-section">
-          <h2>Preview data</h2>
+          <h2>预览数据</h2>
+          <button class="action-button" id="raiseWristButton" type="button">模拟抬腕</button>
           <label class="field-label" for="batteryRange">
-            Battery <output id="batteryOutput">78%</output>
+            电量 <output id="batteryOutput">78%</output>
           </label>
           <input id="batteryRange" type="range" min="0" max="100" value="78">
 
           <label class="toggle-row" for="chargingToggle">
-            <span>Charging</span>
+            <span>正在充电</span>
             <input id="chargingToggle" type="checkbox">
           </label>
 
-          <label class="field-label" for="messageInput">Message</label>
+          <label class="field-label" for="messageInput">通知内容</label>
           <input id="messageInput" class="text-input" type="text"
-                 value="Your reminder starts in 10 minutes" maxlength="72">
+                 value="你的日程将在 10 分钟后开始" maxlength="72">
         </section>
 
         <section class="control-section state-readout">
-          <h2>Runtime contract</h2>
+          <h2>运行状态</h2>
           <dl>
-            <div><dt>State</dt><dd id="stateReadout">idle</dd></div>
-            <div><dt>Surface</dt><dd id="surfaceReadout">watch_face</dd></div>
-            <div><dt>Action</dt><dd>WatchController::RequestTalk</dd></div>
+            <div><dt>状态</dt><dd id="stateReadout">idle</dd></div>
+            <div><dt>界面</dt><dd id="surfaceReadout">watch_face</dd></div>
+            <div><dt>动作</dt><dd>WatchController::RequestTalk</dd></div>
           </dl>
         </section>
       </aside>

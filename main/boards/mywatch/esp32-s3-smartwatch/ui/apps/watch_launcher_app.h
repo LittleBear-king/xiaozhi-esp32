@@ -5,7 +5,7 @@
 
 class WatchLauncherApp final : public WatchAppBase {
 public:
-    WatchLauncherApp() : WatchAppBase("APPS") {}
+    WatchLauncherApp() : WatchAppBase("应用") {}
     WatchAppId Id() const override { return WatchAppId::kLauncher; }
 
 protected:

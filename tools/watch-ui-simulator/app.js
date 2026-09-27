@@ -1,51 +1,46 @@
 const states = {
-  idle: {
-    label: "READY",
-    message: "",
-    caption: "",
-    surface: "watch_face",
-    network: "Wi-Fi"
-  },
+  idle: { label: "就绪", message: "", caption: "", surface: "watch_face", network: "在线" },
+  sleeping: { label: "息屏", message: "", caption: "", surface: "sleep", network: "" },
   connecting: {
-    label: "CONNECTING",
-    message: "Opening secure channel",
-    caption: "Please wait",
+    label: "正在连接",
+    message: "正在建立安全连接",
+    caption: "请稍候",
     surface: "assistant",
-    network: "Linking"
+    network: "连接中"
   },
   listening: {
-    label: "LISTENING",
-    message: "Listening...",
-    caption: "Speak naturally",
+    label: "倾听中",
+    message: "我在听……",
+    caption: "请自然说话",
     surface: "assistant",
-    network: "Online"
+    network: "在线"
   },
   speaking: {
-    label: "SPEAKING",
-    message: "I am here. What would you like to do?",
-    caption: "Tap the crown to close",
+    label: "正在回复",
+    message: "我在，你想做什么？",
+    caption: "按侧键结束",
     surface: "assistant",
-    network: "Online"
+    network: "在线"
   },
   notification: {
-    label: "NOTIFICATION",
-    message: "Your reminder starts in 10 minutes",
-    caption: "Calendar",
+    label: "通知",
+    message: "你的日程将在 10 分钟后开始",
+    caption: "日历",
     surface: "assistant",
-    network: "Wi-Fi"
+    network: "在线"
   },
   error: {
-    label: "CONNECTION ERROR",
-    message: "Unable to reach the assistant",
-    caption: "Check Wi-Fi and try again",
+    label: "连接失败",
+    message: "暂时无法连接语音助手",
+    caption: "请检查 Wi-Fi 后重试",
     surface: "assistant",
-    network: "Offline"
+    network: "离线"
   },
-  launcher: { label: "APPS", message: "", caption: "", surface: "apps", network: "Wi-Fi" },
-  activity: { label: "ACTIVITY", message: "", caption: "", surface: "apps", network: "Wi-Fi" },
-  notifications: { label: "NOTIFICATIONS", message: "", caption: "", surface: "apps", network: "Wi-Fi" },
-  settings: { label: "SETTINGS", message: "", caption: "", surface: "apps", network: "Wi-Fi" },
-  tools: { label: "TOOLS", message: "", caption: "", surface: "apps", network: "Wi-Fi" }
+  launcher: { label: "应用", message: "", caption: "", surface: "apps", network: "在线" },
+  activity: { label: "运动", message: "", caption: "", surface: "apps", network: "在线" },
+  notifications: { label: "通知", message: "", caption: "", surface: "apps", network: "在线" },
+  settings: { label: "设置", message: "", caption: "", surface: "apps", network: "在线" },
+  tools: { label: "工具", message: "", caption: "", surface: "apps", network: "在线" }
 };
 
 const elements = {
@@ -81,40 +76,39 @@ function updateClock() {
     minute: "2-digit",
     hour12: false
   });
-  const weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const calendarDate = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0")
-  ].join("-");
-  elements.date.textContent = `${weekdays[now.getDay()]}  ${calendarDate}`;
+  const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+  const calendarDate =
+    `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月` +
+    `${String(now.getDate()).padStart(2, "0")}日`;
+  elements.date.textContent = `${calendarDate}  ${weekdays[now.getDay()]}`;
 }
 
 function renderApp(name) {
   const pages = {
     launcher: `<div class="app-grid">
-      <button class="app-tile" data-app="activity">ACTIVITY</button>
-      <button class="app-tile" data-app="notifications">NOTICES</button>
-      <button class="app-tile" data-app="settings">SETTINGS</button>
-      <button class="app-tile" data-app="tools">TOOLS</button>
+      <button class="app-tile" data-app="activity">运动</button>
+      <button class="app-tile" data-app="notifications">通知</button>
+      <button class="app-tile" data-app="settings">设置</button>
+      <button class="app-tile" data-app="tools">工具</button>
       <button class="app-tile" data-app="connecting">AI</button>
-      <button class="app-tile" data-app="idle">WATCH FACE</button>
+      <button class="app-tile" data-app="idle">表盘</button>
     </div>`,
-    activity: `<div class="metric">TODAY<strong>6,842</strong>STEPS</div>
-      <div class="metric"><strong>4.78 km</strong>DISTANCE</div>
-      <div class="metric"><strong>273.6 kcal</strong>ENERGY</div>`,
-    notifications: `<article class="notice-card"><strong>Calendar · Design review</strong>Starts in 10 minutes</article>
-      <article class="notice-card"><strong>Phone · Connected</strong>Companion sync is active</article>`,
+    activity: `<div class="metric">今日<strong>6,842 步</strong></div>
+      <div class="metric"><strong>4.78 km</strong>距离</div>
+      <div class="metric"><strong>273.6 kcal</strong>消耗</div>
+      <div class="metric"><strong>活跃 46 分钟</strong>运动传感器正常</div>`,
+    notifications: `<article class="notice-card"><strong>日历 · 设计评审</strong>将在 10 分钟后开始</article>
+      <article class="notice-card"><strong>手机 · 已连接</strong>配套应用正在同步</article>`,
     settings: `<div class="settings-list">
-      <button class="setting-row"><span>Raise to wake</span><strong>ON</strong></button>
-      <button class="setting-row"><span>Do not disturb</span><strong>OFF</strong></button>
-      <button class="setting-row"><span>Clock format</span><strong>24H</strong></button>
-      <button class="setting-row"><span>Brightness</span><strong>75%</strong></button>
+      <button class="setting-row"><span>抬腕亮屏</span><strong>开</strong></button>
+      <button class="setting-row"><span>勿扰模式</span><strong>关</strong></button>
+      <button class="setting-row"><span>时间格式</span><strong>24小时</strong></button>
+      <button class="setting-row"><span>屏幕亮度</span><strong>75%</strong></button>
     </div>`,
-    tools: `<div class="system-row"><strong>STOPWATCH · 00:00.0</strong>Tap on device to start</div>
-      <div class="system-row"><strong>RTC READY</strong>System time synchronized</div>
-      <div class="system-row"><strong>PHONE OFFLINE</strong>Weather, music and find phone need pairing</div>
-      <div class="system-row"><strong>WATCHDOG ON</strong>OTA rollback protected</div>`
+    tools: `<div class="system-row"><strong>秒表 · 00:00.0</strong>点击设备开始计时</div>
+      <div class="system-row"><strong>RTC 正常</strong>系统时间已同步</div>
+      <div class="system-row"><strong>手机未连接</strong>天气、音乐和查找手机需要先配对</div>
+      <div class="system-row"><strong>WDT 开启</strong>OTA 回滚保护已启用</div>`
   };
   elements.appTitle.textContent = states[name].label;
   elements.appContent.innerHTML = pages[name] || pages.launcher;
@@ -127,13 +121,15 @@ function setState(nextState) {
 
   const state = states[nextState];
   const isIdle = nextState === "idle";
+  const isSleeping = nextState === "sleeping";
   const isApp = state.surface === "apps";
   const message = nextState === "notification" ? elements.messageInput.value : state.message;
 
   elements.watchScreen.dataset.state = nextState;
   elements.watchFace.classList.toggle("is-hidden", !isIdle);
-  elements.assistantView.classList.toggle("is-hidden", isIdle || isApp);
+  elements.assistantView.classList.toggle("is-hidden", isIdle || isApp || isSleeping);
   elements.appView.classList.toggle("is-hidden", !isApp);
+  document.querySelector(".status-strip").classList.toggle("is-hidden", isSleeping);
   if (isApp) renderApp(nextState);
   elements.assistantState.textContent = state.label;
   elements.assistantMessage.textContent = message;
@@ -177,6 +173,9 @@ document.querySelector("#talkButton").addEventListener("click", () => {
 });
 
 document.querySelector("#crownButton").addEventListener("click", () => setState("idle"));
+document.querySelector("#raiseWristButton").addEventListener("click", () => {
+  if (currentState === "sleeping") setState("idle");
+});
 elements.batteryRange.addEventListener("input", updateBattery);
 elements.chargingToggle.addEventListener("change", updateBattery);
 elements.messageInput.addEventListener("input", () => {

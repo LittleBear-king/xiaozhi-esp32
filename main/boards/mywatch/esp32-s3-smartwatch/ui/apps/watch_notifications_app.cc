@@ -8,13 +8,13 @@ void WatchNotificationsApp::OnResume() {
 }
 
 void WatchNotificationsApp::BuildContent(lv_obj_t* content) {
-    empty_ = AddLabel(content, "NO NOTIFICATIONS", 120, 0x929AA5);
+    empty_ = AddLabel(content, "暂无通知", 120, 0x929AA5);
     for (size_t index = 0; index < rows_.size(); ++index) {
         rows_[index] = AddLabel(content, "", 10 + static_cast<int>(index) * 92);
         lv_obj_set_style_text_align(rows_[index], LV_TEXT_ALIGN_LEFT, 0);
         lv_label_set_long_mode(rows_[index], LV_LABEL_LONG_MODE_DOTS);
     }
-    AddButton(content, "CLEAR ALL", 95, 300, 160, 54, ClearCallback, this);
+    AddButton(content, "全部清除", 95, 300, 160, 54, ClearCallback, this);
 }
 
 void WatchNotificationsApp::Refresh() {

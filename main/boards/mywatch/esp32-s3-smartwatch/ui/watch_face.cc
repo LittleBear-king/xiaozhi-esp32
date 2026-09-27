@@ -8,7 +8,7 @@
 LV_FONT_DECLARE(BUILTIN_TEXT_FONT);
 
 namespace {
-constexpr const char* kWeekdays[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+constexpr const char* kWeekdays[] = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
 }
 
 WatchFace::WatchFace(lv_obj_t* parent, WatchModel& model, WatchSettingsService& settings,
@@ -133,7 +133,7 @@ void WatchFace::Create(lv_obj_t* parent) {
     lv_obj_set_style_border_color(apps_button, lv_color_hex(0x343A41), 0);
     lv_obj_add_event_cb(apps_button, AppsButtonCallback, LV_EVENT_CLICKED, this);
     auto* apps_label = lv_label_create(apps_button);
-    lv_label_set_text(apps_label, "APPS");
+    lv_label_set_text(apps_label, "应用");
     lv_obj_set_style_text_font(apps_label, &BUILTIN_TEXT_FONT, 0);
     lv_obj_set_style_text_color(apps_label, lv_color_white(), 0);
     lv_obj_center(apps_label);
@@ -188,9 +188,9 @@ void WatchFace::RefreshTime(bool force) {
     }
 
     if (force || time_info.tm_yday != last_day_) {
-        char date_text[32];
-        snprintf(date_text, sizeof(date_text), "%s  %04d-%02d-%02d", kWeekdays[time_info.tm_wday],
-                 time_info.tm_year + 1900, time_info.tm_mon + 1, time_info.tm_mday);
+        char date_text[48];
+        snprintf(date_text, sizeof(date_text), "%04d年%02d月%02d日  %s", time_info.tm_year + 1900,
+                 time_info.tm_mon + 1, time_info.tm_mday, kWeekdays[time_info.tm_wday]);
         lv_label_set_text(date_label_, date_text);
         last_day_ = time_info.tm_yday;
     }

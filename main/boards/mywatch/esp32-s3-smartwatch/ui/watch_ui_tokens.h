@@ -7,11 +7,11 @@ namespace watch_ui {
 
 inline constexpr char kBrandText[] = "MYWATCH";
 inline constexpr char kTalkButtonText[] = "AI";
-inline constexpr char kTalkHintText[] = "TAP TO TALK";
-inline constexpr char kWaitingForTimeText[] = "WAITING FOR TIME";
-inline constexpr char kNetworkOnlineText[] = "NET";
+inline constexpr char kTalkHintText[] = "点击开始对话";
+inline constexpr char kWaitingForTimeText[] = "正在同步时间";
+inline constexpr char kNetworkOnlineText[] = "在线";
 inline constexpr char kNetworkConnectingText[] = "...";
-inline constexpr char kNetworkOfflineText[] = "OFF";
+inline constexpr char kNetworkOfflineText[] = "离线";
 
 inline constexpr uint32_t kBackgroundColor = 0x000000;
 inline constexpr uint32_t kPrimaryColor = 0x315CFF;

@@ -12,7 +12,7 @@ class WatchToolsApp final : public WatchAppBase {
 public:
     WatchToolsApp(WatchTimeService& time, WatchPhoneService& phone,
                   WatchReliabilityService& reliability)
-        : WatchAppBase("TOOLS"), time_(time), phone_(phone), reliability_(reliability) {}
+        : WatchAppBase("工具"), time_(time), phone_(phone), reliability_(reliability) {}
     WatchAppId Id() const override { return WatchAppId::kTools; }
     void OnTick() override;
 

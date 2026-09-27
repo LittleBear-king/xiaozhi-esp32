@@ -1,12 +1,12 @@
 #include "watch_launcher_app.h"
 
 void WatchLauncherApp::BuildContent(lv_obj_t* content) {
-    AddButton(content, "ACTIVITY", 0, 15, 168, 92, ActivityCallback, this);
-    AddButton(content, "NOTICES", 182, 15, 168, 92, NotificationsCallback, this);
-    AddButton(content, "SETTINGS", 0, 122, 168, 92, SettingsCallback, this);
-    AddButton(content, "TOOLS", 182, 122, 168, 92, ToolsCallback, this);
+    AddButton(content, "运动", 0, 15, 168, 92, ActivityCallback, this);
+    AddButton(content, "通知", 182, 15, 168, 92, NotificationsCallback, this);
+    AddButton(content, "设置", 0, 122, 168, 92, SettingsCallback, this);
+    AddButton(content, "工具", 182, 122, 168, 92, ToolsCallback, this);
     AddButton(content, "AI", 0, 229, 168, 92, AssistantCallback, this);
-    AddButton(content, "WATCH FACE", 182, 229, 168, 92, HomeCallback, this);
+    AddButton(content, "表盘", 182, 229, 168, 92, HomeCallback, this);
 }
 
 void WatchLauncherApp::ActivityCallback(lv_event_t* event) {

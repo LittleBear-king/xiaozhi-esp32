@@ -79,8 +79,9 @@ not escape this layer.
 ### `services/watch_motion_service.*`
 
 Owns the raise-to-wake algorithm and its bounded sampling task. It filters the
-screen-normal acceleration, recognizes a lowered-to-face-up transition, applies
-a cooldown, and publishes a callback without touching LVGL or power hardware.
+absolute screen-normal acceleration so either sensor Z polarity works, recognizes
+a lowered-to-raised transition that remains stable for consecutive samples,
+applies a cooldown, and publishes a callback without touching LVGL or power hardware.
 
 ### `services/watch_power_policy.*`
 

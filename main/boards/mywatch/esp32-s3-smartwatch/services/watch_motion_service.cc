@@ -3,6 +3,7 @@
 #include <esp_log.h>
 #include <esp_timer.h>
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -56,7 +57,11 @@ void WatchMotionService::Stop() {
 }
 
 void WatchMotionService::SetEnabled(bool enabled) {
-    raise_enabled_.store(enabled);
+    if (raise_enabled_.exchange(enabled) == enabled) {
+        return;
+    }
+    reset_detection_requested_.store(true);
+    ESP_LOGI(TAG, "Raise-to-wake detection %s", enabled ? "enabled" : "disabled");
     TaskHandle_t task = task_.load();
     if (task != nullptr) {
         xTaskNotifyGive(task);
@@ -77,10 +82,17 @@ void WatchMotionService::TaskLoop() {
                 on_sample_(acceleration, now_us);
             }
             if (raise_enabled_.load()) {
+                if (reset_detection_requested_.exchange(false)) {
+                    filter_ready_ = false;
+                    raise_armed_ = false;
+                    raised_stable_count_ = 0;
+                }
                 ProcessSample(acceleration, now_us);
             } else {
                 filter_ready_ = false;
                 raise_armed_ = false;
+                raised_stable_count_ = 0;
+                reset_detection_requested_.store(false);
             }
         }
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(config_.sample_period_ms));
@@ -98,12 +110,14 @@ void WatchMotionService::ProcessSample(const WatchAcceleration& acceleration, in
         return;
     }
 
-    const float face_up_z_mg = acceleration.z_mg * config_.face_up_z_sign;
+    // A hanging wrist is near 0 mg on the screen-normal axis; a raised screen is
+    // much closer to 1 g. Magnitude makes this independent of the sensor Z polarity.
+    const float screen_normal_mg = std::abs(acceleration.z_mg);
     if (!filter_ready_) {
-        filtered_z_mg_ = face_up_z_mg;
+        filtered_normal_mg_ = screen_normal_mg;
         filter_ready_ = true;
     } else {
-        filtered_z_mg_ += kFilterAlpha * (face_up_z_mg - filtered_z_mg_);
+        filtered_normal_mg_ += kFilterAlpha * (screen_normal_mg - filtered_normal_mg_);
     }
 
     if (now_us < cooldown_until_us_) {
@@ -111,25 +125,33 @@ void WatchMotionService::ProcessSample(const WatchAcceleration& acceleration, in
     }
 
     if (!raise_armed_) {
-        if (filtered_z_mg_ <= config_.lowered_z_max_mg) {
+        if (filtered_normal_mg_ <= config_.lowered_normal_max_mg) {
             raise_armed_ = true;
-            armed_z_mg_ = filtered_z_mg_;
+            armed_normal_mg_ = filtered_normal_mg_;
             armed_at_us_ = now_us;
+            raised_stable_count_ = 0;
         }
         return;
     }
 
+    armed_normal_mg_ = std::min(armed_normal_mg_, filtered_normal_mg_);
+
     const int64_t raise_window_us = static_cast<int64_t>(config_.raise_window_ms) * 1000;
     if (now_us - armed_at_us_ > raise_window_us) {
         raise_armed_ = false;
+        raised_stable_count_ = 0;
         return;
     }
 
-    if (filtered_z_mg_ >= config_.raised_z_min_mg &&
-        filtered_z_mg_ - armed_z_mg_ >= config_.minimum_raise_delta_mg) {
+    const bool raised = filtered_normal_mg_ >= config_.raised_normal_min_mg &&
+                        filtered_normal_mg_ - armed_normal_mg_ >= config_.minimum_raise_delta_mg;
+    raised_stable_count_ = raised ? raised_stable_count_ + 1 : 0;
+    if (raised_stable_count_ >= config_.raised_stable_samples) {
         raise_armed_ = false;
+        raised_stable_count_ = 0;
         cooldown_until_us_ = now_us + static_cast<int64_t>(config_.cooldown_ms) * 1000;
-        ESP_LOGI(TAG, "Wrist raise detected, z=%.0f mg", static_cast<double>(filtered_z_mg_));
+        ESP_LOGI(TAG, "Wrist raise detected, normal=%.0f mg",
+                 static_cast<double>(filtered_normal_mg_));
         if (on_raise_) {
             on_raise_();
         }

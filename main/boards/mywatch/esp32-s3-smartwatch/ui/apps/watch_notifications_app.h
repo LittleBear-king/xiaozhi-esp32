@@ -9,7 +9,7 @@
 class WatchNotificationsApp final : public WatchAppBase {
 public:
     explicit WatchNotificationsApp(WatchNotificationService& notifications)
-        : WatchAppBase("NOTIFICATIONS"), notifications_(notifications) {}
+        : WatchAppBase("通知"), notifications_(notifications) {}
     WatchAppId Id() const override { return WatchAppId::kNotifications; }
     void OnResume() override;
     void OnTick() override { Refresh(); }
