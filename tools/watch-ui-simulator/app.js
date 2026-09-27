@@ -73,11 +73,13 @@ function updateClock() {
     minute: "2-digit",
     hour12: false
   });
-  elements.date.textContent = [
+  const weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const calendarDate = [
     now.getFullYear(),
     String(now.getMonth() + 1).padStart(2, "0"),
     String(now.getDate()).padStart(2, "0")
   ].join("-");
+  elements.date.textContent = `${weekdays[now.getDay()]}  ${calendarDate}`;
 }
 
 function setState(nextState) {

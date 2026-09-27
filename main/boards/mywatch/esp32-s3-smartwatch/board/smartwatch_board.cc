@@ -2,10 +2,12 @@
 #include "button.h"
 #include "codecs/box_audio_codec.h"
 #include "config.h"
-#include "mcp_server.h"
-#include "power_save_timer.h"
+#include "controller/watch_controller.h"
 #include "hal/watch_backlight.h"
 #include "hal/watch_power.h"
+#include "mcp_server.h"
+#include "model/watch_model.h"
+#include "power_save_timer.h"
 #include "ui/watch_display.h"
 #include "wifi_board.h"
 
@@ -17,6 +19,8 @@
 #include <esp_log.h>
 #include <esp_lvgl_port.h>
 #include <lvgl.h>
+
+#include <utility>
 
 #define TAG "MyWatchBoard"
 
@@ -39,10 +43,13 @@ class MyWatchBoard : public WifiBoard {
 private:
     i2c_master_bus_handle_t i2c_bus_ = nullptr;
     WatchPower* power_ = nullptr;
+    WatchModel watch_model_;
+    WatchController watch_controller_;
     Button boot_button_;
     WatchDisplay* display_ = nullptr;
     WatchBacklight* backlight_ = nullptr;
     PowerSaveTimer* power_save_timer_ = nullptr;
+    bool last_discharging_ = false;
 
     void InitializePowerSaveTimer() {
         power_save_timer_ = new PowerSaveTimer(-1, 60, 300);
@@ -55,7 +62,8 @@ private:
             GetBacklight()->RestoreBrightness();
         });
         power_save_timer_->OnShutdownRequest([this]() { power_->PowerOff(); });
-        power_save_timer_->SetEnabled(true);
+        last_discharging_ = power_->IsDischarging();
+        power_save_timer_->SetEnabled(last_discharging_);
     }
 
     void InitializeCodecI2c() {
@@ -101,7 +109,7 @@ private:
                 EnterWifiConfigMode();
                 return;
             }
-            app.ToggleChatState();
+            watch_controller_.RequestTalk();
         });
 
 #if CONFIG_USE_DEVICE_AEC
@@ -152,9 +160,9 @@ private:
         esp_lcd_panel_invert_color(panel, false);
         esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
         esp_lcd_panel_disp_on_off(panel, true);
-        display_ =
-            new WatchDisplay(panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X,
-                             DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
+        display_ = new WatchDisplay(
+            panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y,
+            DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY, watch_model_, watch_controller_);
         backlight_ = new WatchBacklight(panel_io, display_);
         backlight_->RestoreBrightness();
     }
@@ -212,9 +220,11 @@ private:
     }
 
 public:
-    MyWatchBoard() : boot_button_(BOOT_BUTTON_GPIO) {
+    MyWatchBoard() : watch_controller_(watch_model_), boot_button_(BOOT_BUTTON_GPIO) {
         InitializeCodecI2c();
         InitializePower();
+        watch_controller_.UpdateBattery(power_->GetBatteryLevel(), power_->IsCharging(),
+                                        power_->IsDischarging());
         InitializeSpi();
         InitializeSH8601Display();
         InitializeTouch();
@@ -236,17 +246,27 @@ public:
 
     virtual Backlight* GetBacklight() override { return backlight_; }
 
-    virtual bool GetBatteryLevel(int& level, bool& charging, bool& discharging) override {
-        static bool last_discharging = false;
+    bool GetBatteryLevel(int& level, bool& charging, bool& discharging) override {
         charging = power_->IsCharging();
         discharging = power_->IsDischarging();
-        if (discharging != last_discharging) {
-            power_save_timer_->SetEnabled(discharging);
-            last_discharging = discharging;
-        }
-
         level = power_->GetBatteryLevel();
+        watch_controller_.UpdateBattery(level, charging, discharging);
+
+        if (power_save_timer_ != nullptr && discharging != last_discharging_) {
+            power_save_timer_->SetEnabled(discharging);
+            last_discharging_ = discharging;
+        }
         return true;
+    }
+
+    void SetNetworkEventCallback(NetworkEventCallback callback) override {
+        WifiBoard::SetNetworkEventCallback(
+            [this, callback = std::move(callback)](NetworkEvent event, const std::string& data) {
+                watch_controller_.HandleNetworkEvent(event);
+                if (callback) {
+                    callback(event, data);
+                }
+            });
     }
 
     virtual void SetPowerSaveLevel(PowerSaveLevel level) override {

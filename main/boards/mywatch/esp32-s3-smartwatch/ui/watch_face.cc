@@ -2,20 +2,26 @@
 
 #include "watch_ui_tokens.h"
 
+#include <cstdio>
 #include <ctime>
 
 LV_FONT_DECLARE(BUILTIN_TEXT_FONT);
 
-WatchFace::WatchFace(lv_obj_t* parent, const Callbacks& callbacks) : callbacks_(callbacks) {
+namespace {
+constexpr const char* kWeekdays[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+}
+
+WatchFace::WatchFace(lv_obj_t* parent, WatchModel& model, const Callbacks& callbacks)
+    : model_(model), callbacks_(callbacks) {
     Create(parent);
-    RefreshClock(true);
-    clock_timer_ = lv_timer_create(ClockTimerCallback, watch_ui::kClockRefreshPeriodMs, this);
+    Refresh(true);
+    refresh_timer_ = lv_timer_create(RefreshTimerCallback, watch_ui::kRefreshPeriodMs, this);
 }
 
 WatchFace::~WatchFace() {
-    if (clock_timer_ != nullptr) {
-        lv_timer_delete(clock_timer_);
-        clock_timer_ = nullptr;
+    if (refresh_timer_ != nullptr) {
+        lv_timer_delete(refresh_timer_);
+        refresh_timer_ = nullptr;
     }
     if (root_ != nullptr) {
         lv_obj_delete(root_);
@@ -23,9 +29,9 @@ WatchFace::~WatchFace() {
     }
 }
 
-void WatchFace::ClockTimerCallback(lv_timer_t* timer) {
+void WatchFace::RefreshTimerCallback(lv_timer_t* timer) {
     auto* face = static_cast<WatchFace*>(lv_timer_get_user_data(timer));
-    face->RefreshClock();
+    face->Refresh();
     if (face->callbacks_.on_tick != nullptr) {
         face->callbacks_.on_tick(face->callbacks_.context);
     }
@@ -48,6 +54,20 @@ void WatchFace::Create(lv_obj_t* parent) {
     lv_obj_set_style_bg_color(root_, lv_color_hex(watch_ui::kBackgroundColor), 0);
     lv_obj_set_style_bg_opa(root_, LV_OPA_COVER, 0);
     lv_obj_set_scrollbar_mode(root_, LV_SCROLLBAR_MODE_OFF);
+
+    network_label_ = lv_label_create(root_);
+    lv_label_set_text(network_label_, watch_ui::kNetworkOfflineText);
+    lv_obj_set_style_text_font(network_label_, &BUILTIN_TEXT_FONT, 0);
+    lv_obj_set_style_text_color(network_label_, lv_color_hex(watch_ui::kDangerColor), 0);
+    lv_obj_align(network_label_, LV_ALIGN_TOP_LEFT, watch_ui::kStatusSideOffset,
+                 watch_ui::kStatusTopOffset);
+
+    battery_label_ = lv_label_create(root_);
+    lv_label_set_text(battery_label_, "--%");
+    lv_obj_set_style_text_font(battery_label_, &BUILTIN_TEXT_FONT, 0);
+    lv_obj_set_style_text_color(battery_label_, lv_color_hex(watch_ui::kSecondaryTextColor), 0);
+    lv_obj_align(battery_label_, LV_ALIGN_TOP_RIGHT, -watch_ui::kStatusSideOffset,
+                 watch_ui::kStatusTopOffset);
 
     auto* brand_label = lv_label_create(root_);
     lv_label_set_text(brand_label, watch_ui::kBrandText);
@@ -104,14 +124,19 @@ void WatchFace::SetVisible(bool visible) {
     }
     visible_ = visible;
     if (visible) {
-        RefreshClock(true);
+        Refresh(true);
         lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(root_, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
-void WatchFace::RefreshClock(bool force) {
+void WatchFace::Refresh(bool force) {
+    RefreshTime(force);
+    RefreshStatus(force);
+}
+
+void WatchFace::RefreshTime(bool force) {
     if (time_label_ == nullptr || date_label_ == nullptr) {
         return;
     }
@@ -138,9 +163,58 @@ void WatchFace::RefreshClock(bool force) {
     }
 
     if (force || time_info.tm_yday != last_day_) {
-        char date_text[16];
-        strftime(date_text, sizeof(date_text), "%Y-%m-%d", &time_info);
+        char date_text[32];
+        snprintf(date_text, sizeof(date_text), "%s  %04d-%02d-%02d", kWeekdays[time_info.tm_wday],
+                 time_info.tm_year + 1900, time_info.tm_mon + 1, time_info.tm_mday);
         lv_label_set_text(date_label_, date_text);
         last_day_ = time_info.tm_yday;
     }
+}
+
+void WatchFace::RefreshStatus(bool force) {
+    if (network_label_ == nullptr || battery_label_ == nullptr) {
+        return;
+    }
+
+    const WatchSnapshot snapshot = model_.GetSnapshot();
+    if (force || !has_status_snapshot_ || snapshot.network_state != last_network_state_) {
+        const char* text = watch_ui::kNetworkOfflineText;
+        uint32_t color = watch_ui::kDangerColor;
+        if (snapshot.network_state == WatchNetworkState::kOnline) {
+            text = watch_ui::kNetworkOnlineText;
+            color = watch_ui::kSuccessColor;
+        } else if (snapshot.network_state == WatchNetworkState::kConnecting) {
+            text = watch_ui::kNetworkConnectingText;
+            color = watch_ui::kWarningColor;
+        }
+        lv_label_set_text(network_label_, text);
+        lv_obj_set_style_text_color(network_label_, lv_color_hex(color), 0);
+        last_network_state_ = snapshot.network_state;
+    }
+
+    if (force || !has_status_snapshot_ || snapshot.battery_percent != last_battery_percent_ ||
+        snapshot.charging != last_charging_) {
+        char battery_text[16];
+        if (snapshot.battery_percent < 0) {
+            snprintf(battery_text, sizeof(battery_text), "--%%");
+        } else if (snapshot.charging) {
+            snprintf(battery_text, sizeof(battery_text), "%d%% +", snapshot.battery_percent);
+        } else {
+            snprintf(battery_text, sizeof(battery_text), "%d%%", snapshot.battery_percent);
+        }
+
+        uint32_t color = watch_ui::kSecondaryTextColor;
+        if (snapshot.charging) {
+            color = watch_ui::kSuccessColor;
+        } else if (snapshot.battery_percent >= 0 &&
+                   snapshot.battery_percent <= watch_ui::kLowBatteryThreshold) {
+            color = watch_ui::kDangerColor;
+        }
+        lv_label_set_text(battery_label_, battery_text);
+        lv_obj_set_style_text_color(battery_label_, lv_color_hex(color), 0);
+        last_battery_percent_ = snapshot.battery_percent;
+        last_charging_ = snapshot.charging;
+    }
+
+    has_status_snapshot_ = true;
 }

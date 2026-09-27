@@ -28,6 +28,8 @@ not update LVGL directly, and a view does not read an I2C device directly.
 | Directory | Owns | Must not own |
 | --- | --- | --- |
 | `board/` | device composition, bus setup, callback wiring | widget layouts or feature algorithms |
+| `controller/` | user actions and platform-event adaptation | LVGL object ownership or register access |
+| `model/` | thread-safe product state snapshots | hardware access or view logic |
 | `hal/` | product-specific device and transport adapters | application state or LVGL screens |
 | `ui/` | LVGL surfaces, display state adaptation, visual tokens | direct I2C/SPI sensor access |
 | `services/` | future battery, motion, time, notification models | board pin definitions or widgets |
@@ -72,10 +74,20 @@ actions through callbacks and has no dependency on `Application`.
 Firmware-side visual constants. New watch faces should keep dimensions, colors,
 and user-facing labels out of display orchestration code.
 
+### `model/watch_model.*`
+
+Owns the atomic battery and network snapshot shared between platform callbacks
+and the LVGL task. Views only consume snapshots and never query hardware.
+
+### `controller/watch_controller.*`
+
+Normalizes battery and network events, schedules assistant actions on the
+application task, and exposes application state to the display adapter.
+
 ## Runtime Flow
 
 ```text
-Idle -> WatchFace -> tap AI -> ToggleChatState
+Idle -> WatchFace -> tap AI -> WatchController::RequestTalk
      -> Connecting -> Listening -> Speaking
      -> session closes -> Idle -> WatchFace
 ```

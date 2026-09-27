@@ -1,16 +1,19 @@
 #include "watch_display.h"
 
-#include "application.h"
 #include "assets/lang_config.h"
+#include "controller/watch_controller.h"
 #include "watch_face.h"
 
 #include <cstring>
 
 WatchDisplay::WatchDisplay(esp_lcd_panel_io_handle_t io_handle, esp_lcd_panel_handle_t panel_handle,
                            int width, int height, int offset_x, int offset_y, bool mirror_x,
-                           bool mirror_y, bool swap_xy)
+                           bool mirror_y, bool swap_xy, WatchModel& model,
+                           WatchController& controller)
     : SpiLcdDisplay(io_handle, panel_handle, width, height, offset_x, offset_y, mirror_x, mirror_y,
-                    swap_xy) {}
+                    swap_xy),
+      model_(model),
+      controller_(controller) {}
 
 WatchDisplay::~WatchDisplay() {
     DisplayLockGuard lock(this);
@@ -50,7 +53,7 @@ void WatchDisplay::SetupUI() {
         .on_tick = FaceTick,
         .context = this,
     };
-    watch_face_ = std::make_unique<WatchFace>(container_, callbacks);
+    watch_face_ = std::make_unique<WatchFace>(container_, model_, callbacks);
 }
 
 void WatchDisplay::SetStatus(const char* status) {
@@ -65,12 +68,11 @@ void WatchDisplay::ShowNotification(const char* notification, int duration_ms) {
 
 void WatchDisplay::HandleTalkRequested() {
     ApplyWatchFaceVisibility(false);
-    Application::GetInstance().ToggleChatState();
+    controller_.RequestTalk();
 }
 
 void WatchDisplay::MaybeRestoreIdleFace() {
-    if (Application::GetInstance().GetDeviceState() != kDeviceStateIdle ||
-        notification_label_ == nullptr || status_label_ == nullptr ||
+    if (!controller_.IsIdle() || notification_label_ == nullptr || status_label_ == nullptr ||
         !lv_obj_has_flag(notification_label_, LV_OBJ_FLAG_HIDDEN)) {
         return;
     }
@@ -91,8 +93,7 @@ bool WatchDisplay::IsIdleFaceStatus(const char* status) const {
 }
 
 void WatchDisplay::UpdateWatchFaceVisibility(const char* status) {
-    const bool show =
-        Application::GetInstance().GetDeviceState() == kDeviceStateIdle && IsIdleFaceStatus(status);
+    const bool show = controller_.IsIdle() && IsIdleFaceStatus(status);
     SetWatchFaceVisible(show);
 }
 

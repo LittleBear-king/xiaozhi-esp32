@@ -8,6 +8,8 @@ directory.
 ## Structure
 
 - `board/`: hardware composition and generic `Board` capabilities
+- `controller/`: product actions and platform-event adaptation
+- `model/`: thread-safe state snapshots consumed by the UI
 - `hal/`: product-specific power and AMOLED transport
 - `ui/`: display adapter, watch surfaces, and visual constants
 - `docs/`: architecture and product engineering notes
@@ -22,8 +24,17 @@ Runtime flow:
 Idle watch face -> tap AI -> Connecting -> Listening -> Speaking -> Idle watch face
 ```
 
-The AI action uses `Application::ToggleChatState()`. Audio capture, AEC, protocol
+The AI action is scheduled through `WatchController`. Audio capture, AEC, protocol
 transport, wake-word detection, and playback remain owned by Xiaozhi core.
+
+## Current Baseline
+
+- local time, calendar date, and weekday
+- live battery percentage with charging and low-battery states
+- Wi-Fi offline, connecting, and online states
+- touch and hardware-button assistant entry
+- charging-aware display sleep policy
+- thread-safe `WatchModel` snapshots between platform callbacks and LVGL
 
 ## Build
 

@@ -7,13 +7,15 @@
 
 #include <memory>
 
+class WatchController;
 class WatchFace;
+class WatchModel;
 
 class WatchDisplay final : public SpiLcdDisplay {
 public:
     WatchDisplay(esp_lcd_panel_io_handle_t io_handle, esp_lcd_panel_handle_t panel_handle,
                  int width, int height, int offset_x, int offset_y, bool mirror_x, bool mirror_y,
-                 bool swap_xy);
+                 bool swap_xy, WatchModel& model, WatchController& controller);
     ~WatchDisplay() override;
 
     void SetupUI() override;
@@ -28,6 +30,8 @@ private:
         bool bottom_bar_hidden = true;
     };
 
+    WatchModel& model_;
+    WatchController& controller_;
     std::unique_ptr<WatchFace> watch_face_;
     AssistantLayerVisibility assistant_visibility_;
 
