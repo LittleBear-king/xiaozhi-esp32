@@ -567,6 +567,31 @@ input[type="range"] {
   margin-top: 16px;
 }
 
+.tool-inline {
+  display: grid;
+  grid-template-columns: 1fr 74px;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tool-action,
+.tool-reset {
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-strong);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tool-action {
+  color: #dce2e8;
+}
+
+.tool-reset {
+  color: var(--primary-soft);
+}
+
 .app-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

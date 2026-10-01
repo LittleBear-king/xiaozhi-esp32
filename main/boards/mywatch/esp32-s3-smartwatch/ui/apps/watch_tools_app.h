@@ -23,6 +23,8 @@ protected:
 private:
     static void StopwatchCallback(lv_event_t* event);
     static void StopwatchResetCallback(lv_event_t* event);
+    static void CountdownCallback(lv_event_t* event);
+    static void CountdownResetCallback(lv_event_t* event);
 
     WatchTimeService& time_;
     WatchPhoneService& phone_;
@@ -31,9 +33,13 @@ private:
     lv_obj_t* rtc_ = nullptr;
     lv_obj_t* phone_status_ = nullptr;
     lv_obj_t* diagnostics_ = nullptr;
+    lv_obj_t* countdown_ = nullptr;
     bool stopwatch_running_ = false;
     int64_t stopwatch_started_ms_ = 0;
     int64_t stopwatch_elapsed_ms_ = 0;
+    bool countdown_running_ = false;
+    int64_t countdown_started_ms_ = 0;
+    int64_t countdown_remaining_ms_ = 5 * 60 * 1000;
 };
 
 #endif  // _MYWATCH_WATCH_TOOLS_APP_H_

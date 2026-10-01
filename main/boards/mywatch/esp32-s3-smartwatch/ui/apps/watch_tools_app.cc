@@ -12,12 +12,14 @@ void WatchToolsApp::BuildContent(lv_obj_t* content) {
     phone_status_ = AddLabel(content, "手机  未连接 · 0 条", 144, 0x929AA5);
     diagnostics_ = AddLabel(content, "启动 0 · 故障 0", 192, 0x929AA5);
     AddLabel(content, "WDT  开启", 240, 0x929AA5);
-    AddLabel(content, "天气 / 音乐 / 找手机", 288, 0x8BA4FF);
-    AddLabel(content, "配对手机后可用", 330, 0x929AA5);
+    countdown_ = AddButton(content, "05:00", 0, 288, 260, 64, CountdownCallback, this);
+    countdown_ = lv_obj_get_child(countdown_, 0);
+    AddButton(content, "复位", 270, 288, 80, 64, CountdownResetCallback, this);
+    Refresh();
 }
 
 void WatchToolsApp::OnTick() {
-    if (stopwatch_running_)
+    if (stopwatch_running_ || countdown_running_)
         Refresh();
 }
 
@@ -31,6 +33,20 @@ void WatchToolsApp::Refresh() {
              static_cast<long long>((elapsed / 1000) % 60),
              static_cast<long long>((elapsed / 10) % 100));
     lv_label_set_text(stopwatch_, text);
+
+    int64_t countdown_remaining = countdown_remaining_ms_;
+    if (countdown_running_) {
+        countdown_remaining -= static_cast<int64_t>(lv_tick_get()) - countdown_started_ms_;
+        if (countdown_remaining <= 0) {
+            countdown_remaining = 0;
+            countdown_remaining_ms_ = 0;
+            countdown_running_ = false;
+        }
+    }
+    snprintf(text, sizeof(text), "%02lld:%02lld",
+             static_cast<long long>(countdown_remaining / 60000),
+             static_cast<long long>((countdown_remaining / 1000) % 60));
+    lv_label_set_text(countdown_, text);
 
     const auto clock = time_.GetSnapshot();
     snprintf(text, sizeof(text), "RTC  %s · %s", clock.rtc_available ? "正常" : "不可用",
@@ -67,5 +83,26 @@ void WatchToolsApp::StopwatchResetCallback(lv_event_t* event) {
     app->stopwatch_running_ = false;
     app->stopwatch_started_ms_ = 0;
     app->stopwatch_elapsed_ms_ = 0;
+    app->Refresh();
+}
+
+void WatchToolsApp::CountdownCallback(lv_event_t* event) {
+    auto* app = static_cast<WatchToolsApp*>(lv_event_get_user_data(event));
+    const int64_t now = lv_tick_get();
+    if (app->countdown_running_) {
+        app->countdown_remaining_ms_ -= now - app->countdown_started_ms_;
+        app->countdown_running_ = false;
+    } else if (app->countdown_remaining_ms_ > 0) {
+        app->countdown_started_ms_ = now;
+        app->countdown_running_ = true;
+    }
+    app->Refresh();
+}
+
+void WatchToolsApp::CountdownResetCallback(lv_event_t* event) {
+    auto* app = static_cast<WatchToolsApp*>(lv_event_get_user_data(event));
+    app->countdown_running_ = false;
+    app->countdown_started_ms_ = 0;
+    app->countdown_remaining_ms_ = 5 * 60 * 1000;
     app->Refresh();
 }

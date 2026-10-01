@@ -68,6 +68,9 @@ const elements = {
 
 let currentState = "idle";
 let pendingTransition = null;
+let countdownSeconds = 300;
+let countdownRunning = false;
+let countdownLastTick = performance.now();
 
 function updateClock() {
   const now = new Date();
@@ -105,13 +108,31 @@ function renderApp(name) {
       <button class="setting-row"><span>时间格式</span><strong>24小时</strong></button>
       <button class="setting-row"><span>屏幕亮度</span><strong>75%</strong></button>
     </div>`,
-    tools: `<div class="system-row"><strong>秒表 · 00:00.0</strong>点击设备开始计时</div>
+    tools: `<div class="tool-inline"><button class="tool-action" data-tool="countdown">${formatCountdown()}</button><button class="tool-reset" data-tool="countdown-reset">复位</button></div>
+      <div class="system-row"><strong>秒表 · 00:00.00</strong>点击设备开始计时</div>
       <div class="system-row"><strong>RTC 正常</strong>系统时间已同步</div>
       <div class="system-row"><strong>手机未连接</strong>天气、音乐和查找手机需要先配对</div>
       <div class="system-row"><strong>WDT 开启</strong>OTA 回滚保护已启用</div>`
   };
   elements.appTitle.textContent = states[name].label;
   elements.appContent.innerHTML = pages[name] || pages.launcher;
+}
+
+function formatCountdown() {
+  const minutes = Math.floor(countdownSeconds / 60).toString().padStart(2, "0");
+  const seconds = Math.floor(countdownSeconds % 60).toString().padStart(2, "0");
+  return `${countdownRunning ? "暂停" : "开始"}  ${minutes}:${seconds}`;
+}
+
+function updateCountdown(now) {
+  const elapsed = (now - countdownLastTick) / 1000;
+  countdownLastTick = now;
+  if (currentState === "tools" && countdownRunning) {
+    countdownSeconds = Math.max(0, countdownSeconds - elapsed);
+    if (countdownSeconds === 0) countdownRunning = false;
+    const button = elements.appContent.querySelector('[data-tool="countdown"]');
+    if (button) button.textContent = formatCountdown();
+  }
 }
 
 function setState(nextState) {
@@ -165,6 +186,18 @@ document.querySelector("#appBack").addEventListener("click", () => {
 elements.appContent.addEventListener("click", (event) => {
   const target = event.target.closest("[data-app]");
   if (target) setState(target.dataset.app);
+  const tool = event.target.closest("[data-tool]");
+  if (!tool) return;
+  if (tool.dataset.tool === "countdown") {
+    countdownRunning = countdownSeconds > 0 && !countdownRunning;
+    countdownLastTick = performance.now();
+    tool.textContent = formatCountdown();
+  } else if (tool.dataset.tool === "countdown-reset") {
+    countdownRunning = false;
+    countdownSeconds = 300;
+    const countdown = elements.appContent.querySelector('[data-tool="countdown"]');
+    if (countdown) countdown.textContent = formatCountdown();
+  }
 });
 
 document.querySelector("#talkButton").addEventListener("click", () => {
@@ -186,3 +219,4 @@ updateClock();
 updateBattery();
 setState("idle");
 window.setInterval(updateClock, 1000);
+window.setInterval(() => updateCountdown(performance.now()), 100);
