@@ -5,9 +5,9 @@
 #include <cstdio>
 
 void WatchToolsApp::BuildContent(lv_obj_t* content) {
-    stopwatch_ = AddButton(content, "秒表  00:00.0", 0, 5, 230, 74, StopwatchCallback, this);
+    stopwatch_ = AddButton(content, "00:00.00", 0, 5, 260, 74, StopwatchCallback, this);
     stopwatch_ = lv_obj_get_child(stopwatch_, 0);
-    AddButton(content, "复位", 240, 5, 110, 74, StopwatchResetCallback, this);
+    AddButton(content, "复位", 270, 5, 80, 74, StopwatchResetCallback, this);
     rtc_ = AddLabel(content, "RTC  正常 · 已同步", 96, 0x929AA5);
     phone_status_ = AddLabel(content, "手机  未连接 · 0 条", 144, 0x929AA5);
     diagnostics_ = AddLabel(content, "启动 0 · 故障 0", 192, 0x929AA5);
@@ -26,10 +26,10 @@ void WatchToolsApp::Refresh() {
     if (stopwatch_running_)
         elapsed += static_cast<int64_t>(lv_tick_get()) - stopwatch_started_ms_;
     char text[96];
-    snprintf(text, sizeof(text), "秒表  %02lld:%02lld.%lld",
+    snprintf(text, sizeof(text), "%02lld:%02lld.%02lld",
              static_cast<long long>((elapsed / 60000) % 100),
              static_cast<long long>((elapsed / 1000) % 60),
-             static_cast<long long>((elapsed / 100) % 10));
+             static_cast<long long>((elapsed / 10) % 100));
     lv_label_set_text(stopwatch_, text);
 
     const auto clock = time_.GetSnapshot();

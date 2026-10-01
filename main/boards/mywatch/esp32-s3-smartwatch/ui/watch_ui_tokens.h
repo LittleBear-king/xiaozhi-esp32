@@ -36,7 +36,7 @@ inline constexpr int kTalkButtonBorderWidth = 2;
 inline constexpr int kTalkButtonShadowWidth = 18;
 inline constexpr int kHintBottomOffset = -47;
 inline constexpr int kLowBatteryThreshold = 15;
-inline constexpr uint32_t kRefreshPeriodMs = 1000;
+inline constexpr uint32_t kRefreshPeriodMs = 100;
 inline constexpr int kMinimumValidYear = 2025;
 
 }  // namespace watch_ui
