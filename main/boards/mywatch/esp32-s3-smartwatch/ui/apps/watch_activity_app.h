@@ -16,6 +16,7 @@ protected:
 
 private:
     WatchHealthService& health_;
+    static void ResetCallback(lv_event_t* event);
     lv_obj_t* steps_ = nullptr;
     lv_obj_t* distance_ = nullptr;
     lv_obj_t* calories_ = nullptr;

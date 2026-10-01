@@ -8,7 +8,14 @@ void WatchActivityApp::BuildContent(lv_obj_t* content) {
     distance_ = AddLabel(content, "0.00 km", 125);
     calories_ = AddLabel(content, "0.0 kcal", 180);
     active_ = AddLabel(content, "活跃 0 分钟", 235);
-    sensor_ = AddLabel(content, "运动传感器", 310, 0x929AA5);
+    sensor_ = AddLabel(content, "运动传感器", 278, 0x929AA5);
+    AddButton(content, "清零", 95, 326, 160, 50, ResetCallback, this);
+}
+
+void WatchActivityApp::ResetCallback(lv_event_t* event) {
+    auto* app = static_cast<WatchActivityApp*>(lv_event_get_user_data(event));
+    app->health_.ResetToday();
+    app->Refresh();
 }
 
 void WatchActivityApp::Refresh() {

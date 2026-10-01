@@ -10,9 +10,8 @@ void WatchNotificationsApp::OnResume() {
 void WatchNotificationsApp::BuildContent(lv_obj_t* content) {
     empty_ = AddLabel(content, "暂无通知", 120, 0x929AA5);
     for (size_t index = 0; index < rows_.size(); ++index) {
-        rows_[index] = AddLabel(content, "", 10 + static_cast<int>(index) * 92);
+        rows_[index] = AddLabel(content, "", 10 + static_cast<int>(index) * 48);
         lv_obj_set_style_text_align(rows_[index], LV_TEXT_ALIGN_LEFT, 0);
-        lv_label_set_long_mode(rows_[index], LV_LABEL_LONG_MODE_DOTS);
     }
     AddButton(content, "全部清除", 95, 300, 160, 54, ClearCallback, this);
 }
@@ -29,9 +28,9 @@ void WatchNotificationsApp::Refresh() {
             lv_label_set_text(rows_[index], "");
             continue;
         }
-        char text[220];
-        snprintf(text, sizeof(text), "%s  %s\n%s", snapshot.items[index].source.data(),
-                 snapshot.items[index].title.data(), snapshot.items[index].body.data());
+        char text[128];
+        snprintf(text, sizeof(text), "%s · %s", snapshot.items[index].source.data(),
+                 snapshot.items[index].title.data());
         lv_label_set_text(rows_[index], text);
     }
 }
