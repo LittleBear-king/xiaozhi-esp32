@@ -15,6 +15,8 @@ void WatchSettingsApp::BuildContent(lv_obj_t* content) {
     labels_[2] = ButtonLabel(button);
     button = AddButton(content, "", 0, 244, 350, 68, BrightnessCallback, this);
     labels_[3] = ButtonLabel(button);
+    button = AddButton(content, "", 0, 318, 350, 58, AlarmCallback, this);
+    labels_[4] = ButtonLabel(button);
 }
 
 void WatchSettingsApp::Refresh() {
@@ -28,6 +30,9 @@ void WatchSettingsApp::Refresh() {
     char text[40];
     snprintf(text, sizeof(text), "屏幕亮度        %u%%", value.brightness);
     lv_label_set_text(labels_[3], text);
+    snprintf(text, sizeof(text), "闹钟      %02u:%02u  %s", value.alarm_hour, value.alarm_minute,
+             value.alarm_enabled ? "开" : "关");
+    lv_label_set_text(labels_[4], text);
 }
 
 void WatchSettingsApp::RaiseCallback(lv_event_t* event) {
@@ -49,5 +54,18 @@ void WatchSettingsApp::BrightnessCallback(lv_event_t* event) {
     auto* app = static_cast<WatchSettingsApp*>(lv_event_get_user_data(event));
     const uint8_t current = app->settings_.GetSnapshot().brightness;
     app->settings_.SetBrightness(current >= 100 ? 25 : current + 25);
+    app->Refresh();
+}
+
+void WatchSettingsApp::AlarmCallback(lv_event_t* event) {
+    auto* app = static_cast<WatchSettingsApp*>(lv_event_get_user_data(event));
+    const auto value = app->settings_.GetSnapshot();
+    if (value.alarm_enabled) {
+        app->settings_.SetAlarmEnabled(false);
+    } else {
+        app->settings_.SetAlarmTime(static_cast<uint8_t>((value.alarm_hour + 1) % 24),
+                                    value.alarm_minute);
+        app->settings_.SetAlarmEnabled(true);
+    }
     app->Refresh();
 }

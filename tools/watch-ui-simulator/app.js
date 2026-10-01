@@ -107,6 +107,7 @@ function renderApp(name) {
       <button class="setting-row"><span>勿扰模式</span><strong>关</strong></button>
       <button class="setting-row"><span>时间格式</span><strong>24小时</strong></button>
       <button class="setting-row"><span>屏幕亮度</span><strong>75%</strong></button>
+      <button class="setting-row"><span>闹钟</span><strong>07:30 关</strong></button>
     </div>`,
     tools: `<div class="tool-inline"><button class="tool-action" data-tool="countdown">${formatCountdown()}</button><button class="tool-reset" data-tool="countdown-reset">复位</button></div>
       <div class="system-row"><strong>秒表 · 00:00.00</strong>点击设备开始计时</div>

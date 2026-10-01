@@ -21,9 +21,10 @@ private:
     static void DndCallback(lv_event_t* event);
     static void ClockCallback(lv_event_t* event);
     static void BrightnessCallback(lv_event_t* event);
+    static void AlarmCallback(lv_event_t* event);
 
     WatchSettingsService& settings_;
-    std::array<lv_obj_t*, 4> labels_{};
+    std::array<lv_obj_t*, 5> labels_{};
 };
 
 #endif  // _MYWATCH_WATCH_SETTINGS_APP_H_

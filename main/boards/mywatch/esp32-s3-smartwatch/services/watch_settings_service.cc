@@ -12,6 +12,11 @@ WatchSettingsService::WatchSettingsService() {
     settings_.use_24_hour = settings.GetBool("hour24", true);
     settings_.brightness = static_cast<uint8_t>(std::clamp(
         settings.GetInt("brightness", 75), static_cast<int32_t>(10), static_cast<int32_t>(100)));
+    settings_.alarm_enabled = settings.GetBool("alarm_enabled", false);
+    const auto alarm_hour = settings.GetInt("alarm_hour", 7);
+    const auto alarm_minute = settings.GetInt("alarm_minute", 30);
+    settings_.alarm_hour = static_cast<uint8_t>(alarm_hour < 0 ? 0 : alarm_hour > 23 ? 23 : alarm_hour);
+    settings_.alarm_minute = static_cast<uint8_t>(alarm_minute < 0 ? 0 : alarm_minute > 59 ? 59 : alarm_minute);
 }
 
 void WatchSettingsService::SetChangedCallback(ChangedCallback callback) {
@@ -48,12 +53,28 @@ void WatchSettingsService::SetBrightness(uint8_t brightness) {
     Save();
 }
 
+void WatchSettingsService::SetAlarmEnabled(bool enabled) {
+    if (settings_.alarm_enabled == enabled)
+        return;
+    settings_.alarm_enabled = enabled;
+    Save();
+}
+
+void WatchSettingsService::SetAlarmTime(uint8_t hour, uint8_t minute) {
+    settings_.alarm_hour = hour % 24;
+    settings_.alarm_minute = minute % 60;
+    Save();
+}
+
 void WatchSettingsService::Save() {
     Settings settings("watch", true);
     settings.SetBool("raise_wake", settings_.raise_to_wake);
     settings.SetBool("dnd", settings_.do_not_disturb);
     settings.SetBool("hour24", settings_.use_24_hour);
     settings.SetInt("brightness", settings_.brightness);
+    settings.SetBool("alarm_enabled", settings_.alarm_enabled);
+    settings.SetInt("alarm_hour", settings_.alarm_hour);
+    settings.SetInt("alarm_minute", settings_.alarm_minute);
     NotifyChanged();
 }
 
