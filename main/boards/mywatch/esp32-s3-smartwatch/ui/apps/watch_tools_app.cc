@@ -18,10 +18,7 @@ void WatchToolsApp::BuildContent(lv_obj_t* content) {
     Refresh();
 }
 
-void WatchToolsApp::OnTick() {
-    if (stopwatch_running_ || countdown_running_)
-        Refresh();
-}
+void WatchToolsApp::OnTick() { Refresh(); }
 
 void WatchToolsApp::Refresh() {
     int64_t elapsed = stopwatch_elapsed_ms_;

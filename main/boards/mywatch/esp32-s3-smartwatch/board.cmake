@@ -10,6 +10,7 @@ list(APPEND SOURCES
     "${MYWATCH_BOARD_ROOT}/hal/watch_rtc.cc"
     "${MYWATCH_BOARD_ROOT}/model/watch_model.cc"
     "${MYWATCH_BOARD_ROOT}/services/watch_health_service.cc"
+    "${MYWATCH_BOARD_ROOT}/services/watch_ble_companion_service.cc"
     "${MYWATCH_BOARD_ROOT}/services/watch_motion_service.cc"
     "${MYWATCH_BOARD_ROOT}/services/watch_notification_service.cc"
     "${MYWATCH_BOARD_ROOT}/services/watch_phone_service.cc"

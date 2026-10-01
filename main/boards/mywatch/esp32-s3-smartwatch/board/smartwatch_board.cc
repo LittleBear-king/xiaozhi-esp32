@@ -10,6 +10,7 @@
 #include "mcp_server.h"
 #include "model/watch_model.h"
 #include "services/watch_health_service.h"
+#include "services/watch_ble_companion_service.h"
 #include "services/watch_motion_service.h"
 #include "services/watch_notification_service.h"
 #include "services/watch_phone_service.h"
@@ -62,6 +63,7 @@ private:
     WatchSettingsService settings_service_;
     WatchReliabilityService reliability_service_;
     WatchPhoneService phone_service_;
+    std::unique_ptr<WatchBleCompanionService> ble_companion_service_;
     Button boot_button_;
     WatchDisplay* display_ = nullptr;
     WatchBacklight* backlight_ = nullptr;
@@ -106,6 +108,14 @@ private:
             power_policy_->SetRaiseToWakeEnabled(settings.raise_to_wake);
             backlight_->SetBrightness(settings.brightness, true);
         });
+    }
+
+    void InitializePhoneTransport() {
+        ble_companion_service_ = std::make_unique<WatchBleCompanionService>(phone_service_);
+        if (!ble_companion_service_->Start()) {
+            ESP_LOGE(TAG, "BLE phone companion service failed to start");
+            ble_companion_service_.reset();
+        }
     }
 
     void InitializeMotion() {
@@ -329,6 +339,7 @@ public:
         InitializeTouch();
         InitializeButtons();
         InitializeTools();
+        InitializePhoneTransport();
         InitializePowerPolicy();
         InitializeMotion();
         InitializeSettings();

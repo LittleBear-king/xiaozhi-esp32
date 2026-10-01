@@ -51,11 +51,11 @@ transport, wake-word detection, and playback remain owned by Xiaozhi core.
 - centisecond stopwatch and five-minute countdown tools
 - OTA rollback partitions, flash coredumps, watchdog status, and reset diagnostics
 - transport-neutral validated companion notification protocol
+- bonded NimBLE companion GATT with encrypted writes and bounded JSON framing
 
-The firmware-side product baseline is complete. Weather, media control, and
-find-phone actions intentionally stop at the companion boundary until the phone
-transport is selected and tested. The remaining integration work is BLE
-pairing, framing, reconnect behavior, and phone-side message delivery.
+The firmware-side product baseline is complete. The remaining integration work
+is device/phone verification and implementing weather, media control, and
+find-phone behavior on top of the companion protocol.
 
 ## Build
 

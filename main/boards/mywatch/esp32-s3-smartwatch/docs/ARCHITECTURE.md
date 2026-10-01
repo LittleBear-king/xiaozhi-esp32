@@ -133,6 +133,8 @@ notifications, settings, and tools.
 - `WatchNotificationService` retains twelve newest notifications without unbounded queues.
 - `WatchSettingsService` owns stable NVS keys in the `watch` namespace.
 - `WatchPhoneService` validates transport-independent companion messages.
+- `WatchBleCompanionService` owns NimBLE advertising, LE bonding, GATT framing,
+  and forwards complete messages to `WatchPhoneService`.
 - `WatchReliabilityService` persists boot/reset diagnostics and exposes rollback/watchdog state.
 
 The product partition table keeps two 3.875 MiB OTA slots, an 8 MiB asset

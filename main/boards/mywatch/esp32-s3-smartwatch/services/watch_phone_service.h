@@ -20,6 +20,7 @@ public:
 
     void SetConnected(bool connected);
     bool HandleMessage(const char* data, size_t length);
+    void RejectMessage();
     WatchPhoneSnapshot GetSnapshot() const;
 
 private:

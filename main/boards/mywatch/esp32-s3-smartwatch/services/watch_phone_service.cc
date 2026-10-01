@@ -21,6 +21,10 @@ void WatchPhoneService::SetConnected(bool connected) {
     connected_.store(connected, std::memory_order_relaxed);
 }
 
+void WatchPhoneService::RejectMessage() {
+    rejected_messages_.fetch_add(1, std::memory_order_relaxed);
+}
+
 bool WatchPhoneService::HandleMessage(const char* data, size_t length) {
     if (data == nullptr || length == 0 || length > kMaximumMessageBytes) {
         rejected_messages_.fetch_add(1, std::memory_order_relaxed);
