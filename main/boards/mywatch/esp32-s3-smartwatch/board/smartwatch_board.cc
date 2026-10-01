@@ -82,6 +82,20 @@ private:
     void InitializeTime() {
         rtc_ = std::make_unique<WatchRtc>(i2c_bus_, RTC_I2C_ADDRESS);
         time_service_ = std::make_unique<WatchTimeService>(*rtc_);
+        time_service_->SetAlarmProvider(
+            [this](int hour, int minute) {
+                const auto settings = settings_service_.GetSnapshot();
+                return settings.alarm_enabled && settings.alarm_hour == hour &&
+                       settings.alarm_minute == minute;
+            },
+            [this]() {
+                notification_service_.Push("闹钟", "时间到了", "请查看今天的安排");
+                watch_controller_.NotifyUserActivity();
+                if (display_ != nullptr && !settings_service_.GetSnapshot().do_not_disturb) {
+                    Application::GetInstance().Schedule(
+                        [this]() { display_->ShowNotification("闹钟：时间到了", 5000); });
+                }
+            });
         if (!time_service_->Start()) {
             ESP_LOGW(TAG, "Time service failed to start");
         }

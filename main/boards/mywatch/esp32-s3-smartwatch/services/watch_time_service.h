@@ -7,6 +7,7 @@
 #include <freertos/task.h>
 
 #include <atomic>
+#include <functional>
 
 struct WatchTimeSnapshot {
     bool rtc_available = false;
@@ -21,6 +22,8 @@ public:
 
     bool Start();
     void Stop();
+    void SetAlarmProvider(std::function<bool(int, int)> provider,
+                         std::function<void()> callback);
     WatchTimeSnapshot GetSnapshot() const;
 
 private:
@@ -34,6 +37,9 @@ private:
     std::atomic<bool> rtc_available_{false};
     std::atomic<bool> system_time_valid_{false};
     std::atomic<bool> rtc_synchronized_{false};
+    std::function<bool(int, int)> alarm_provider_;
+    std::function<void()> alarm_callback_;
+    int last_alarm_minute_ = -1;
 };
 
 #endif  // _MYWATCH_WATCH_TIME_SERVICE_H_

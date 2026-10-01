@@ -46,6 +46,12 @@ WatchTimeSnapshot WatchTimeService::GetSnapshot() const {
     };
 }
 
+void WatchTimeService::SetAlarmProvider(std::function<bool(int, int)> provider,
+                                        std::function<void()> callback) {
+    alarm_provider_ = std::move(provider);
+    alarm_callback_ = std::move(callback);
+}
+
 void WatchTimeService::TaskEntry(void* context) {
     static_cast<WatchTimeService*>(context)->TaskLoop();
 }
@@ -56,6 +62,18 @@ void WatchTimeService::TaskLoop() {
         const time_t now = time(nullptr);
         const bool valid = IsTimeValid(now);
         system_time_valid_.store(valid);
+
+        if (valid && alarm_provider_ && alarm_callback_) {
+            struct tm local = {};
+            localtime_r(&now, &local);
+            const int minute_key = local.tm_yday * 1440 + local.tm_hour * 60 + local.tm_min;
+            if (minute_key != last_alarm_minute_) {
+                last_alarm_minute_ = minute_key;
+                if (alarm_provider_(local.tm_hour, local.tm_min)) {
+                    alarm_callback_();
+                }
+            }
+        }
 
         if (!valid && rtc_available_.load() && !restored_from_rtc) {
             struct tm local = {};
