@@ -5,7 +5,10 @@
 
 #define AUDIO_INPUT_SAMPLE_RATE 24000
 #define AUDIO_OUTPUT_SAMPLE_RATE 24000
-#define AUDIO_INPUT_REFERENCE true
+// ES7210 provides microphone ADC channels on this board; it does not expose
+// a DAC playback reference channel for the AFE. Treat input as microphone-only
+// so device AEC cannot use a second microphone as a false echo reference.
+#define AUDIO_INPUT_REFERENCE false
 
 #define AUDIO_I2S_GPIO_MCLK GPIO_NUM_16
 #define AUDIO_I2S_GPIO_WS GPIO_NUM_45

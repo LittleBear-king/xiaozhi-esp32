@@ -61,6 +61,9 @@ bool Application::SetDeviceState(DeviceState state) { return state_machine_.Tran
 void Application::Initialize() {
     auto& board = Board::GetInstance();
     SetDeviceState(kDeviceStateStarting);
+    if (!board.ShouldUseDeviceAec()) {
+        aec_mode_ = kAecOff;
+    }
 
     // Setup the display
     auto display = board.GetDisplay();
