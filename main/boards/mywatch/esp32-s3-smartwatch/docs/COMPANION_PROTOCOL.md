@@ -35,3 +35,15 @@ next companion milestone adds a board-specific NimBLE GATT transport with
 pairing, bonding, message framing, reconnect backoff, and find-phone commands.
 Keeping the JSON boundary independent means the notification store and UI do not
 change when that transport is enabled.
+
+## Remaining phone integration
+
+The following features intentionally stop at the companion boundary until phone debugging:
+
+- weather snapshots for the tools/weather surface
+- media title, artist, and playback state
+- find-phone request and acknowledgement
+
+These messages must use the same bounded UTF-8 framing and connection state as
+notifications. They must not be coupled to LVGL or the radio driver; the phone
+service remains the parser and state owner.

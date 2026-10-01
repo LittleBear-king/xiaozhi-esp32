@@ -46,9 +46,16 @@ transport, wake-word detection, and playback remain owned by Xiaozhi core.
 - PCF85063 RTC restore and network-time writeback
 - daily QMI8658 step, distance, energy, and active-minute estimates
 - bounded notification center with do-not-disturb behavior
-- persistent brightness, clock format, and raise-to-wake settings
+- persistent brightness, clock format, raise-to-wake, and alarm settings
+- RTC-triggered alarm notifications with screen wake-up
+- centisecond stopwatch and five-minute countdown tools
 - OTA rollback partitions, flash coredumps, watchdog status, and reset diagnostics
 - transport-neutral validated companion notification protocol
+
+The firmware-side product baseline is complete. Weather, media control, and
+find-phone actions intentionally stop at the companion boundary until the phone
+transport is selected and tested. The remaining integration work is BLE
+pairing, framing, reconnect behavior, and phone-side message delivery.
 
 ## Build
 
