@@ -23,6 +23,8 @@ python app.py
 ```
 
 默认监听 `0.0.0.0:8088`，模型由 `MYWATCH_MODEL` 指定。
+网关默认让模型驻留 30 分钟，避免每次对话重新加载；设置
+`MYWATCH_KEEP_ALIVE=-1` 可让模型一直驻留，直到 Ollama 重启。
 
 ## 测试
 

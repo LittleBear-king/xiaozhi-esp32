@@ -59,7 +59,8 @@ def _call_ollama(request: ChatRequest) -> ChatResponse:
     model = _model_name(request.model)
     payload = json.dumps(
         {"model": model, "messages": _messages(request.messages), "stream": False,
-         "options": {"temperature": request.temperature}}
+         "options": {"temperature": request.temperature},
+         "keep_alive": os.getenv("MYWATCH_KEEP_ALIVE", "30m")}
     ).encode("utf-8")
     http_request = Request(
         f"{_ollama_url()}/api/chat",
