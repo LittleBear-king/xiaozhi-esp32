@@ -22,6 +22,7 @@ protected:
 
 private:
     static void StopwatchCallback(lv_event_t* event);
+    static void StopwatchResetCallback(lv_event_t* event);
 
     WatchTimeService& time_;
     WatchPhoneService& phone_;

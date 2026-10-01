@@ -5,8 +5,9 @@
 #include <cstdio>
 
 void WatchToolsApp::BuildContent(lv_obj_t* content) {
-    stopwatch_ = AddButton(content, "秒表  00:00.0", 0, 5, 350, 74, StopwatchCallback, this);
+    stopwatch_ = AddButton(content, "秒表  00:00.0", 0, 5, 230, 74, StopwatchCallback, this);
     stopwatch_ = lv_obj_get_child(stopwatch_, 0);
+    AddButton(content, "复位", 240, 5, 110, 74, StopwatchResetCallback, this);
     rtc_ = AddLabel(content, "RTC", 100, 0x929AA5);
     phone_status_ = AddLabel(content, "手机", 155, 0x929AA5);
     diagnostics_ = AddLabel(content, "系统", 210, 0x929AA5);
@@ -58,5 +59,13 @@ void WatchToolsApp::StopwatchCallback(lv_event_t* event) {
         app->stopwatch_started_ms_ = now;
         app->stopwatch_running_ = true;
     }
+    app->Refresh();
+}
+
+void WatchToolsApp::StopwatchResetCallback(lv_event_t* event) {
+    auto* app = static_cast<WatchToolsApp*>(lv_event_get_user_data(event));
+    app->stopwatch_running_ = false;
+    app->stopwatch_started_ms_ = 0;
+    app->stopwatch_elapsed_ms_ = 0;
     app->Refresh();
 }
