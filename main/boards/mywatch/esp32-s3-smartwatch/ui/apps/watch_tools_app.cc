@@ -8,11 +8,12 @@ void WatchToolsApp::BuildContent(lv_obj_t* content) {
     stopwatch_ = AddButton(content, "秒表  00:00.0", 0, 5, 230, 74, StopwatchCallback, this);
     stopwatch_ = lv_obj_get_child(stopwatch_, 0);
     AddButton(content, "复位", 240, 5, 110, 74, StopwatchResetCallback, this);
-    rtc_ = AddLabel(content, "RTC", 100, 0x929AA5);
-    phone_status_ = AddLabel(content, "手机", 155, 0x929AA5);
-    diagnostics_ = AddLabel(content, "系统", 210, 0x929AA5);
-    AddLabel(content, "天气 / 音乐 / 查找手机", 285, 0x8BA4FF);
-    AddLabel(content, "手机配对后可用", 325, 0x929AA5);
+    rtc_ = AddLabel(content, "RTC  正常 · 已同步", 96, 0x929AA5);
+    phone_status_ = AddLabel(content, "手机  未连接 · 0 条", 144, 0x929AA5);
+    diagnostics_ = AddLabel(content, "启动 0 · 故障 0", 192, 0x929AA5);
+    AddLabel(content, "WDT  开启", 240, 0x929AA5);
+    AddLabel(content, "天气 / 音乐 / 找手机", 288, 0x8BA4FF);
+    AddLabel(content, "配对手机后可用", 330, 0x929AA5);
 }
 
 void WatchToolsApp::OnTick() {
@@ -32,20 +33,19 @@ void WatchToolsApp::Refresh() {
     lv_label_set_text(stopwatch_, text);
 
     const auto clock = time_.GetSnapshot();
-    snprintf(text, sizeof(text), "RTC %s / 时间%s", clock.rtc_available ? "正常" : "不可用",
+    snprintf(text, sizeof(text), "RTC  %s · %s", clock.rtc_available ? "正常" : "不可用",
              clock.system_time_valid ? "已同步" : "待同步");
     lv_label_set_text(rtc_, text);
 
     const auto phone = phone_.GetSnapshot();
-    snprintf(text, sizeof(text), "手机%s / 已接收 %lu", phone.connected ? "已连接" : "未连接",
+    snprintf(text, sizeof(text), "手机  %s · %lu 条", phone.connected ? "已连接" : "未连接",
              static_cast<unsigned long>(phone.received_messages));
     lv_label_set_text(phone_status_, text);
 
     const auto diag = reliability_.GetSnapshot();
-    snprintf(text, sizeof(text), "启动 %lu / 故障 %lu / WDT %s",
+    snprintf(text, sizeof(text), "启动 %lu · 故障 %lu",
              static_cast<unsigned long>(diag.boot_count),
-             static_cast<unsigned long>(diag.consecutive_faults),
-             diag.task_watchdog_enabled ? "开启" : "关闭");
+             static_cast<unsigned long>(diag.consecutive_faults));
     lv_label_set_text(diagnostics_, text);
 }
 

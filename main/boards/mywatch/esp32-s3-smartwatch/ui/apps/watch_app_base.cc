@@ -60,6 +60,8 @@ lv_obj_t* WatchAppBase::AddLabel(lv_obj_t* parent, const char* text, int y, uint
     auto* label = lv_label_create(parent);
     lv_label_set_text(label, text);
     lv_obj_set_width(label, lv_pct(100));
+    lv_obj_set_height(label, 42);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
     lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, y);
