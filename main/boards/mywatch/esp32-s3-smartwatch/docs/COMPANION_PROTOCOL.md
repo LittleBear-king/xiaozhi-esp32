@@ -68,3 +68,15 @@ The following features intentionally stop at the companion boundary until phone 
 
 These message types and actions still need implementation and phone-side testing.
 They must use the same bounded UTF-8 framing and connection state as notifications.
+
+## Linux computer test
+
+After the first pairing, a Linux computer with BlueZ and Python Bleak can send a
+notification without a phone app:
+
+```bash
+python3 -m pip install --user bleak
+python3 tools/test-mywatch-ble.py --address 80:B5:4E:F2:04:4A
+```
+
+The script prints TX acknowledgements and the received/rejected counters.
