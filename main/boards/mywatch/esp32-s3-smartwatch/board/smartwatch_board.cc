@@ -331,6 +331,7 @@ public:
 
     bool ShouldStartNetworkOnBoot() const override { return false; }
     bool CanEnterIdleWithoutNetwork() const override { return true; }
+    bool ShouldUseDeviceAec() const override { return false; }
 
     virtual Display* GetDisplay() override { return display_; }
 
