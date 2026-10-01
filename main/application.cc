@@ -75,6 +75,14 @@ void Application::Initialize() {
     ESP_LOGI(TAG, "After board/audio init");
     SystemInfo::PrintHeapStats();
 
+    // Apply the factory assets before the watch is shown. The built-in font
+    // contains Latin glyphs only; the local assets partition contains the
+    // bundled CJK font needed by the watch UI when Wi-Fi is deferred.
+    auto& assets = Assets::GetInstance();
+    if (assets.partition_valid()) {
+        assets.Apply();
+    }
+
     AudioServiceCallbacks callbacks;
     callbacks.on_send_queue_available = [this]() {
         xEventGroupSetBits(event_group_, MAIN_EVENT_SEND_AUDIO);
