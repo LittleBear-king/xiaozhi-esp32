@@ -55,12 +55,17 @@ def _messages(messages: list[Message]) -> list[dict[str, str]]:
     return result
 
 
+def _keep_alive() -> str | int:
+    value = os.getenv("MYWATCH_KEEP_ALIVE", "30m")
+    return -1 if value.strip() == "-1" else value
+
+
 def _call_ollama(request: ChatRequest) -> ChatResponse:
     model = _model_name(request.model)
     payload = json.dumps(
         {"model": model, "messages": _messages(request.messages), "stream": False,
          "options": {"temperature": request.temperature},
-         "keep_alive": os.getenv("MYWATCH_KEEP_ALIVE", "30m")}
+         "keep_alive": _keep_alive()}
     ).encode("utf-8")
     http_request = Request(
         f"{_ollama_url()}/api/chat",
