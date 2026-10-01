@@ -2,8 +2,6 @@
 
 #include "ui/watch_ui_tokens.h"
 
-LV_FONT_DECLARE(BUILTIN_TEXT_FONT);
-
 WatchAppBase::~WatchAppBase() {
     if (root_ != nullptr) {
         lv_obj_delete(root_);
@@ -13,12 +11,14 @@ WatchAppBase::~WatchAppBase() {
 void WatchAppBase::Create(lv_obj_t* parent, WatchAppNavigator& navigator) {
     navigator_ = &navigator;
     root_ = lv_obj_create(parent);
+    const lv_font_t* inherited_font = lv_obj_get_style_text_font(parent, LV_PART_MAIN);
     lv_obj_set_size(root_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_pos(root_, 0, 0);
     lv_obj_set_style_radius(root_, watch_ui::kScreenCornerRadius, 0);
     lv_obj_set_style_clip_corner(root_, true, 0);
     lv_obj_set_style_border_width(root_, 0, 0);
     lv_obj_set_style_pad_all(root_, 0, 0);
+    lv_obj_set_style_text_font(root_, inherited_font, 0);
     lv_obj_set_style_bg_color(root_, lv_color_hex(watch_ui::kBackgroundColor), 0);
     lv_obj_set_scrollbar_mode(root_, LV_SCROLLBAR_MODE_OFF);
 
@@ -31,13 +31,11 @@ void WatchAppBase::Create(lv_obj_t* parent, WatchAppNavigator& navigator) {
     lv_obj_add_event_cb(back, BackButtonCallback, LV_EVENT_CLICKED, this);
     auto* back_text = lv_label_create(back);
     lv_label_set_text(back_text, "<");
-    lv_obj_set_style_text_font(back_text, &BUILTIN_TEXT_FONT, 0);
     lv_obj_set_style_text_color(back_text, lv_color_white(), 0);
     lv_obj_center(back_text);
 
     auto* title = lv_label_create(root_);
     lv_label_set_text(title, title_);
-    lv_obj_set_style_text_font(title, &BUILTIN_TEXT_FONT, 0);
     lv_obj_set_style_text_color(title, lv_color_white(), 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 43);
 
@@ -64,7 +62,6 @@ lv_obj_t* WatchAppBase::AddLabel(lv_obj_t* parent, const char* text, int y, uint
     auto* label = lv_label_create(parent);
     lv_label_set_text(label, text);
     lv_obj_set_width(label, lv_pct(100));
-    lv_obj_set_style_text_font(label, &BUILTIN_TEXT_FONT, 0);
     lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(label, LV_ALIGN_TOP_MID, 0, y);
@@ -83,7 +80,6 @@ lv_obj_t* WatchAppBase::AddButton(lv_obj_t* parent, const char* text, int x, int
     lv_obj_add_event_cb(button, callback, LV_EVENT_CLICKED, user_data);
     auto* label = lv_label_create(button);
     lv_label_set_text(label, text);
-    lv_obj_set_style_text_font(label, &BUILTIN_TEXT_FONT, 0);
     lv_obj_set_style_text_color(label, lv_color_white(), 0);
     lv_obj_center(label);
     return button;

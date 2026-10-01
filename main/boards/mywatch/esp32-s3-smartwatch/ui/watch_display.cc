@@ -94,6 +94,7 @@ void WatchDisplay::SetupUI() {
     app_router_->Register(std::make_unique<WatchNotificationsApp>(notifications_));
     app_router_->Register(std::make_unique<WatchSettingsApp>(settings_));
     app_router_->Register(std::make_unique<WatchToolsApp>(time_, phone_, reliability_));
+    ApplyWatchFaceVisibility(true);
 }
 
 void WatchDisplay::SetStatus(const char* status) {
@@ -164,11 +165,20 @@ bool WatchDisplay::IsIdleFaceStatus(const char* status) const {
 }
 
 void WatchDisplay::UpdateWatchFaceVisibility(const char* status) {
-    const bool show = controller_.IsIdle() && IsIdleFaceStatus(status);
-    if (show && app_router_ != nullptr && app_router_->IsVisible()) {
+    if (status == nullptr) {
         return;
     }
-    SetWatchFaceVisible(show);
+    if (IsIdleFaceStatus(status)) {
+        if (app_router_ == nullptr || !app_router_->IsVisible()) {
+            SetWatchFaceVisible(true);
+        }
+        return;
+    }
+    if (strcmp(status, Lang::Strings::CONNECTING) == 0 ||
+        strcmp(status, Lang::Strings::LISTENING) == 0 ||
+        strcmp(status, Lang::Strings::SPEAKING) == 0) {
+        SetWatchFaceVisible(false);
+    }
 }
 
 void WatchDisplay::SetWatchFaceVisible(bool visible) {
