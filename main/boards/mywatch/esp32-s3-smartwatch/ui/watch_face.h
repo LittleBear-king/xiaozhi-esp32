@@ -29,7 +29,6 @@ public:
 private:
     WatchModel& model_;
     WatchSettingsService& settings_;
-    const lv_font_t* font_ = nullptr;
     lv_obj_t* root_ = nullptr;
     lv_obj_t* network_label_ = nullptr;
     lv_obj_t* battery_label_ = nullptr;

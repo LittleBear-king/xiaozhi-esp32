@@ -329,6 +329,9 @@ public:
         return &audio_codec;
     }
 
+    bool ShouldStartNetworkOnBoot() const override { return false; }
+    bool CanEnterIdleWithoutNetwork() const override { return true; }
+
     virtual Display* GetDisplay() override { return display_; }
 
     virtual Backlight* GetBacklight() override { return backlight_; }

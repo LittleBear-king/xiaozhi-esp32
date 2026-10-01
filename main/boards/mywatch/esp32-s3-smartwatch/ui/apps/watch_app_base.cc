@@ -11,14 +11,12 @@ WatchAppBase::~WatchAppBase() {
 void WatchAppBase::Create(lv_obj_t* parent, WatchAppNavigator& navigator) {
     navigator_ = &navigator;
     root_ = lv_obj_create(parent);
-    const lv_font_t* inherited_font = lv_obj_get_style_text_font(parent, LV_PART_MAIN);
     lv_obj_set_size(root_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_pos(root_, 0, 0);
     lv_obj_set_style_radius(root_, watch_ui::kScreenCornerRadius, 0);
     lv_obj_set_style_clip_corner(root_, true, 0);
     lv_obj_set_style_border_width(root_, 0, 0);
     lv_obj_set_style_pad_all(root_, 0, 0);
-    lv_obj_set_style_text_font(root_, inherited_font, 0);
     lv_obj_set_style_bg_color(root_, lv_color_hex(watch_ui::kBackgroundColor), 0);
     lv_obj_set_scrollbar_mode(root_, LV_SCROLLBAR_MODE_OFF);
 

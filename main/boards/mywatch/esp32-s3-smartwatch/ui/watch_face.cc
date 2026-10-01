@@ -13,7 +13,6 @@ WatchFace::WatchFace(lv_obj_t* parent, WatchModel& model, WatchSettingsService& 
                      const Callbacks& callbacks)
     : model_(model),
       settings_(settings),
-      font_(lv_obj_get_style_text_font(parent, LV_PART_MAIN)),
       callbacks_(callbacks) {
     Create(parent);
     Refresh(true);
@@ -61,42 +60,36 @@ void WatchFace::Create(lv_obj_t* parent) {
     lv_obj_set_style_clip_corner(root_, true, 0);
     lv_obj_set_style_border_width(root_, 0, 0);
     lv_obj_set_style_pad_all(root_, 0, 0);
-    lv_obj_set_style_text_font(root_, font_, 0);
     lv_obj_set_style_bg_color(root_, lv_color_hex(watch_ui::kBackgroundColor), 0);
     lv_obj_set_style_bg_opa(root_, LV_OPA_COVER, 0);
     lv_obj_set_scrollbar_mode(root_, LV_SCROLLBAR_MODE_OFF);
 
     network_label_ = lv_label_create(root_);
     lv_label_set_text(network_label_, watch_ui::kNetworkOfflineText);
-    lv_obj_set_style_text_font(network_label_, font_, 0);
     lv_obj_set_style_text_color(network_label_, lv_color_hex(watch_ui::kDangerColor), 0);
     lv_obj_align(network_label_, LV_ALIGN_TOP_LEFT, watch_ui::kStatusSideOffset,
                  watch_ui::kStatusTopOffset);
 
     battery_label_ = lv_label_create(root_);
     lv_label_set_text(battery_label_, "--%");
-    lv_obj_set_style_text_font(battery_label_, font_, 0);
     lv_obj_set_style_text_color(battery_label_, lv_color_hex(watch_ui::kSecondaryTextColor), 0);
     lv_obj_align(battery_label_, LV_ALIGN_TOP_RIGHT, -watch_ui::kStatusSideOffset,
                  watch_ui::kStatusTopOffset);
 
     auto* brand_label = lv_label_create(root_);
     lv_label_set_text(brand_label, watch_ui::kBrandText);
-    lv_obj_set_style_text_font(brand_label, font_, 0);
     lv_obj_set_style_text_color(brand_label, lv_color_hex(watch_ui::kBrandColor), 0);
     lv_obj_set_style_text_letter_space(brand_label, 3, 0);
     lv_obj_align(brand_label, LV_ALIGN_TOP_MID, 0, watch_ui::kBrandTopOffset);
 
     time_label_ = lv_label_create(root_);
     lv_label_set_text(time_label_, "--:--");
-    lv_obj_set_style_text_font(time_label_, font_, 0);
     lv_obj_set_style_text_color(time_label_, lv_color_white(), 0);
     lv_obj_set_style_text_letter_space(time_label_, 4, 0);
     lv_obj_align(time_label_, LV_ALIGN_CENTER, 0, watch_ui::kTimeCenterOffsetY);
 
     date_label_ = lv_label_create(root_);
     lv_label_set_text(date_label_, watch_ui::kWaitingForTimeText);
-    lv_obj_set_style_text_font(date_label_, font_, 0);
     lv_obj_set_style_text_color(date_label_, lv_color_hex(watch_ui::kSecondaryTextColor), 0);
     lv_obj_align(date_label_, LV_ALIGN_CENTER, 0, watch_ui::kDateCenterOffsetY);
 
@@ -115,13 +108,11 @@ void WatchFace::Create(lv_obj_t* parent) {
 
     auto* talk_label = lv_label_create(talk_button);
     lv_label_set_text(talk_label, watch_ui::kTalkButtonText);
-    lv_obj_set_style_text_font(talk_label, font_, 0);
     lv_obj_set_style_text_color(talk_label, lv_color_white(), 0);
     lv_obj_center(talk_label);
 
     auto* hint_label = lv_label_create(root_);
     lv_label_set_text(hint_label, watch_ui::kTalkHintText);
-    lv_obj_set_style_text_font(hint_label, font_, 0);
     lv_obj_set_style_text_color(hint_label, lv_color_hex(watch_ui::kHintTextColor), 0);
     lv_obj_set_style_text_letter_space(hint_label, 2, 0);
     lv_obj_align(hint_label, LV_ALIGN_BOTTOM_MID, 0, -82);
@@ -136,7 +127,6 @@ void WatchFace::Create(lv_obj_t* parent) {
     lv_obj_add_event_cb(apps_button, AppsButtonCallback, LV_EVENT_CLICKED, this);
     auto* apps_label = lv_label_create(apps_button);
     lv_label_set_text(apps_label, "应用");
-    lv_obj_set_style_text_font(apps_label, font_, 0);
     lv_obj_set_style_text_color(apps_label, lv_color_white(), 0);
     lv_obj_center(apps_label);
 

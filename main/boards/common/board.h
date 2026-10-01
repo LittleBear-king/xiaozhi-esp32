@@ -75,6 +75,9 @@ public:
     virtual Camera* GetCamera();
     virtual NetworkInterface* GetNetwork() = 0;
     virtual void StartNetwork() = 0;
+    // Boards such as watches can defer network startup until the user opens AI.
+    virtual bool ShouldStartNetworkOnBoot() const { return true; }
+    virtual bool CanEnterIdleWithoutNetwork() const { return false; }
     virtual void SetNetworkEventCallback(NetworkEventCallback callback) { (void)callback; }
     virtual const char* GetNetworkStateIcon() = 0;
     virtual bool GetBatteryLevel(int &level, bool& charging, bool& discharging);

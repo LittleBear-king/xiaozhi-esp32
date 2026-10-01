@@ -45,9 +45,10 @@ bool DeviceStateMachine::IsValidTransition(DeviceState from, DeviceState to) con
             return to == kDeviceStateStarting;
 
         case kDeviceStateStarting:
-            // Can go to wifi configuring or activating
+            // Boards that defer network startup may enter the watch face directly.
             return to == kDeviceStateWifiConfiguring ||
-                   to == kDeviceStateActivating;
+                   to == kDeviceStateActivating ||
+                   to == kDeviceStateIdle;
 
         case kDeviceStateWifiConfiguring:
             // Can go to activating (after wifi connected) or audio testing

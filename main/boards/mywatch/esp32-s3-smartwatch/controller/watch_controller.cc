@@ -53,7 +53,7 @@ void WatchController::RequestTalk() {
         if (power_policy != nullptr) {
             power_policy->WakeDisplay();
         }
-        Application::GetInstance().ToggleChatState();
+        Application::GetInstance().RequestChat();
     });
 }
 

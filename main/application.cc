@@ -129,6 +129,7 @@ void Application::Initialize() {
                 break;
             }
             case NetworkEvent::Connected: {
+                network_connected_ = true;
                 std::string msg = Lang::Strings::CONNECTED_TO;
                 msg += data;
                 display->ShowNotification(msg.c_str(), 30000);
@@ -136,6 +137,7 @@ void Application::Initialize() {
                 break;
             }
             case NetworkEvent::Disconnected:
+                network_connected_ = false;
                 xEventGroupSetBits(event_group_, MAIN_EVENT_NETWORK_DISCONNECTED);
                 break;
             case NetworkEvent::WifiConfigModeEnter:
@@ -166,8 +168,14 @@ void Application::Initialize() {
         }
     });
 
-    // Start network asynchronously
-    board.StartNetwork();
+    // Most devices need network during boot. A watch stays on its watch face
+    // and starts Wi-Fi only when the user opens AI.
+    if (board.ShouldStartNetworkOnBoot()) {
+        network_started_ = true;
+        board.StartNetwork();
+    } else if (board.CanEnterIdleWithoutNetwork()) {
+        SetDeviceState(kDeviceStateIdle);
+    }
 
     // Update the status bar immediately to show the network state
     display->UpdateStatusBar(true);
@@ -299,7 +307,8 @@ void Application::HandleNetworkConnectedEvent() {
         }
     }
 
-    if (state == kDeviceStateStarting || state == kDeviceStateWifiConfiguring) {
+    if (state == kDeviceStateStarting || state == kDeviceStateWifiConfiguring ||
+        (pending_chat_ && state == kDeviceStateIdle)) {
         // Network is ready, start activation
         SetDeviceState(kDeviceStateActivating);
         if (activation_task_handle_ != nullptr) {
@@ -343,6 +352,8 @@ void Application::HandleActivationDoneEvent() {
     ESP_LOGI(TAG, "Activation done");
 
     SystemInfo::PrintHeapStats();
+    const bool start_chat = pending_chat_;
+    pending_chat_ = false;
     SetDeviceState(kDeviceStateIdle);
 
     has_server_time_ = ota_->HasServerTime();
@@ -368,6 +379,9 @@ void Application::HandleActivationDoneEvent() {
             // Play the success sound to indicate the device is ready
             audio_service_.PlaySound(Lang::Sounds::OGG_SUCCESS);
         });
+        if (start_chat) {
+            Schedule([this]() { ToggleChatState(); });
+        }
     }
 }
 
@@ -781,6 +795,23 @@ void Application::DismissAlert() {
 }
 
 void Application::ToggleChatState() { xEventGroupSetBits(event_group_, MAIN_EVENT_TOGGLE_CHAT); }
+
+void Application::RequestChat() {
+    auto& board = Board::GetInstance();
+    if (protocol_) {
+        ToggleChatState();
+        return;
+    }
+
+    pending_chat_ = true;
+    if (!network_started_) {
+        network_started_ = true;
+        board.StartNetwork();
+    } else if (network_connected_ && GetDeviceState() == kDeviceStateIdle) {
+        // The connected event may have arrived before this request was handled.
+        xEventGroupSetBits(event_group_, MAIN_EVENT_NETWORK_CONNECTED);
+    }
+}
 
 void Application::StartListening() { xEventGroupSetBits(event_group_, MAIN_EVENT_START_LISTENING); }
 
