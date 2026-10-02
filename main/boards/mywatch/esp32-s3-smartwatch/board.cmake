@@ -18,6 +18,7 @@ list(APPEND SOURCES
     "${MYWATCH_BOARD_ROOT}/services/watch_reliability_service.cc"
     "${MYWATCH_BOARD_ROOT}/services/watch_settings_service.cc"
     "${MYWATCH_BOARD_ROOT}/services/watch_time_service.cc"
+    "${MYWATCH_BOARD_ROOT}/services/watch_voice_stream.cc"
     "${MYWATCH_BOARD_ROOT}/ui/apps/watch_activity_app.cc"
     "${MYWATCH_BOARD_ROOT}/ui/apps/watch_app_base.cc"
     "${MYWATCH_BOARD_ROOT}/ui/apps/watch_launcher_app.cc"
