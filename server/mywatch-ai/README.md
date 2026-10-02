@@ -87,6 +87,18 @@ curl -X POST http://127.0.0.1:8088/v1/synthesize \
 
 服务器会发送 `ready`、`audio_received`、`transcribing`、`transcript`、`thinking`、`reply`、`synthesizing`、`audio_start`、多个二进制音频块、`audio_end` 和 `done`。发生问题时发送 `error`。
 
+电脑端联调脚本：
+
+```bash
+pip install websockets
+python tools/test-mywatch-voice-ws.py \
+  --url ws://127.0.0.1:8088/ws/voice \
+  --audio speech.wav \
+  --output reply.wav
+```
+
+脚本会打印每个协议事件，并将服务器返回的 TTS 音频保存为 `reply.wav`。
+
 第一次调用会加载 ASR 模型，后续请求复用同一个模型。没有 NVIDIA GPU 时，
 可设置 `MYWATCH_ASR_DEVICE=cpu` 和 `MYWATCH_ASR_COMPUTE_TYPE=int8`。
 
