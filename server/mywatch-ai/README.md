@@ -75,13 +75,13 @@ curl -X POST http://127.0.0.1:8088/v1/synthesize \
 
 ## WebSocket 实时通道
 
-手表可以通过 `/ws/voice` 持续上传二进制音频块。第一版使用实时连接和二进制音频返回；模型推理在收到 `end` 后处理完整一句话，后续可再替换为流式 ASR。
+手表可以通过 `/ws/voice` 持续上传二进制音频块。客户端可以发送完整 WAV，也可以发送裸 `pcm_s16le`；声明为 PCM 时服务器会自动补 WAV 头。模型推理在收到 `end` 后处理完整一句话，后续可再替换为流式 ASR。
 
 客户端消息顺序：
 
 ```text
-文本：{"type":"start","language":"zh"}
-二进制：WAV 文件分片（第一版要求内容最终组成一个有效 WAV）
+文本：{"type":"start","language":"zh","format":"pcm_s16le","sample_rate":16000,"channels":1}
+二进制：PCM 音频分片
 文本：{"type":"end"}
 ```
 

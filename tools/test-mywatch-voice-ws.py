@@ -18,7 +18,13 @@ async def run(args: argparse.Namespace) -> None:
         raise SystemExit(f"Audio file not found: {audio_path}")
 
     async with websockets.connect(args.url, max_size=None) as socket:
-        await socket.send(json.dumps({"type": "start", "language": args.language}))
+        await socket.send(json.dumps({
+            "type": "start",
+            "language": args.language,
+            "format": args.format,
+            "sample_rate": args.sample_rate,
+            "channels": 1,
+        }))
         print("TX start")
         while True:
             event = json.loads(await socket.recv())
@@ -27,6 +33,8 @@ async def run(args: argparse.Namespace) -> None:
                 break
 
         with audio_path.open("rb") as audio:
+            if args.format == "pcm_s16le":
+                audio.seek(44)
             while chunk := audio.read(args.chunk_size):
                 await socket.send(chunk)
                 print(f"TX audio: {len(chunk)} bytes")
@@ -68,6 +76,8 @@ def main() -> None:
     parser.add_argument("--audio", default="speech.wav")
     parser.add_argument("--output", default="reply.wav")
     parser.add_argument("--language", default="zh")
+    parser.add_argument("--format", choices=("wav", "pcm_s16le"), default="wav")
+    parser.add_argument("--sample-rate", type=int, default=16000)
     parser.add_argument("--chunk-size", type=int, default=4096)
     args = parser.parse_args()
     asyncio.run(run(args))

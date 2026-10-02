@@ -6,6 +6,7 @@ import json
 import os
 import base64
 import asyncio
+import struct
 import subprocess
 import tempfile
 from threading import Lock
@@ -264,12 +265,15 @@ async def voice_stream(websocket: WebSocket) -> None:
     """Receive PCM/WAV chunks and return status, text, and binary TTS events.
 
     Client messages:
-      {"type":"start", "language":"zh"}
+      {"type":"start", "language":"zh", "format":"pcm_s16le", "sample_rate":16000, "channels":1}
       binary audio chunks
       {"type":"end"}
     """
     await websocket.accept()
     language: str | None = None
+    audio_format = "wav"
+    sample_rate = 16000
+    channels = 1
     audio_size = 0
     try:
         with tempfile.NamedTemporaryFile(suffix=".wav") as temporary:
@@ -293,12 +297,35 @@ async def voice_stream(websocket: WebSocket) -> None:
                 command_type = command.get("type")
                 if command_type == "start":
                     language = command.get("language") or None
-                    await websocket.send_json({"type": "ready", "audio_format": "wav"})
+                    audio_format = command.get("format", "wav")
+                    sample_rate = int(command.get("sample_rate", 16000))
+                    channels = int(command.get("channels", 1))
+                    if audio_format not in {"wav", "pcm_s16le"}:
+                        await websocket.send_json({"type": "error", "message": "Unsupported audio format"})
+                        continue
+                    if not 8000 <= sample_rate <= 48000 or channels not in {1, 2}:
+                        await websocket.send_json({"type": "error", "message": "Invalid audio parameters"})
+                        continue
+                    if audio_format == "pcm_s16le":
+                        temporary.write(b"\x00" * 44)
+                    await websocket.send_json({"type": "ready", "audio_format": audio_format})
                 elif command_type == "end":
                     if audio_size == 0:
                         await websocket.send_json({"type": "error", "message": "No audio received"})
                         continue
                     temporary.flush()
+                    if audio_format == "pcm_s16le":
+                        data_size = audio_size
+                        byte_rate = sample_rate * channels * 2
+                        block_align = channels * 2
+                        temporary.seek(0)
+                        temporary.write(b"RIFF")
+                        temporary.write(struct.pack("<I", 36 + data_size))
+                        temporary.write(b"WAVEfmt ")
+                        temporary.write(struct.pack("<IHHIIHH", 16, 1, channels, sample_rate, byte_rate, block_align, 16))
+                        temporary.write(b"data")
+                        temporary.write(struct.pack("<I", data_size))
+                        temporary.flush()
                     await websocket.send_json({"type": "transcribing"})
                     text, detected_language, probability = await asyncio.to_thread(
                         _transcribe_file, temporary.name, language
