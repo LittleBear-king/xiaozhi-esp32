@@ -2,3 +2,5 @@ fastapi>=0.115,<1
 uvicorn[standard]>=0.32,<1
 python-multipart>=0.0.9,<1
 faster-whisper>=1.1,<2
+# faster-whisper currently passes metadata_errors to PyAV; PyAV 14+ removed it.
+av>=11,<14
