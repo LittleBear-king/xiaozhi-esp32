@@ -73,6 +73,20 @@ curl -X POST http://127.0.0.1:8088/v1/synthesize \
 音频。暂时只测试 ASR 或聊天时，可在语音对话请求中加入
 `-F "include_audio=false"`。
 
+## WebSocket 实时通道
+
+手表可以通过 `/ws/voice` 持续上传二进制音频块。第一版使用实时连接和二进制音频返回；模型推理在收到 `end` 后处理完整一句话，后续可再替换为流式 ASR。
+
+客户端消息顺序：
+
+```text
+文本：{"type":"start","language":"zh"}
+二进制：WAV 文件分片（第一版要求内容最终组成一个有效 WAV）
+文本：{"type":"end"}
+```
+
+服务器会发送 `ready`、`audio_received`、`transcribing`、`transcript`、`thinking`、`reply`、`synthesizing`、`audio_start`、多个二进制音频块、`audio_end` 和 `done`。发生问题时发送 `error`。
+
 第一次调用会加载 ASR 模型，后续请求复用同一个模型。没有 NVIDIA GPU 时，
 可设置 `MYWATCH_ASR_DEVICE=cpu` 和 `MYWATCH_ASR_COMPUTE_TYPE=int8`。
 

@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 import os
 import base64
+import asyncio
 import subprocess
 import tempfile
 from threading import Lock
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from fastapi import File, Form, UploadFile
+from fastapi import File, Form, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
@@ -142,6 +143,14 @@ def _synthesize_text(text: str) -> bytes:
             raise HTTPException(status_code=502, detail="Piper did not produce an audio file") from error
 
 
+async def _send_tts_audio(websocket: WebSocket, text: str) -> None:
+    audio = await asyncio.to_thread(_synthesize_text, text)
+    await websocket.send_json({"type": "audio_start", "format": "wav", "size": len(audio)})
+    for offset in range(0, len(audio), 4096):
+        await websocket.send_bytes(audio[offset : offset + 4096])
+    await websocket.send_json({"type": "audio_end"})
+
+
 def _call_ollama(request: ChatRequest) -> ChatResponse:
     model = _model_name(request.model)
     payload = json.dumps(
@@ -248,6 +257,79 @@ async def synthesize(text: str = Form(..., min_length=1, max_length=2000)) -> di
         "audio_format": "wav",
         "audio_base64": base64.b64encode(audio).decode("ascii"),
     }
+
+
+@app.websocket("/ws/voice")
+async def voice_stream(websocket: WebSocket) -> None:
+    """Receive PCM/WAV chunks and return status, text, and binary TTS events.
+
+    Client messages:
+      {"type":"start", "language":"zh"}
+      binary audio chunks
+      {"type":"end"}
+    """
+    await websocket.accept()
+    language: str | None = None
+    audio_size = 0
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".wav") as temporary:
+            while True:
+                message = await websocket.receive()
+                if message.get("type") == "websocket.disconnect":
+                    return
+                if message.get("bytes") is not None:
+                    chunk = message["bytes"]
+                    temporary.write(chunk)
+                    audio_size += len(chunk)
+                    await websocket.send_json({"type": "audio_received", "bytes": audio_size})
+                    continue
+                if message.get("text") is None:
+                    continue
+                try:
+                    command = json.loads(message["text"])
+                except json.JSONDecodeError:
+                    await websocket.send_json({"type": "error", "message": "Invalid JSON command"})
+                    continue
+                command_type = command.get("type")
+                if command_type == "start":
+                    language = command.get("language") or None
+                    await websocket.send_json({"type": "ready", "audio_format": "wav"})
+                elif command_type == "end":
+                    if audio_size == 0:
+                        await websocket.send_json({"type": "error", "message": "No audio received"})
+                        continue
+                    temporary.flush()
+                    await websocket.send_json({"type": "transcribing"})
+                    text, detected_language, probability = await asyncio.to_thread(
+                        _transcribe_file, temporary.name, language
+                    )
+                    if not text:
+                        await websocket.send_json({"type": "error", "message": "No speech detected"})
+                        continue
+                    await websocket.send_json({
+                        "type": "transcript",
+                        "text": text,
+                        "language": detected_language,
+                        "language_probability": probability,
+                    })
+                    await websocket.send_json({"type": "thinking"})
+                    response = await asyncio.to_thread(
+                        _call_ollama,
+                        ChatRequest(messages=[Message(role="user", content=text)]),
+                    )
+                    await websocket.send_json({"type": "reply", "text": response.message.content})
+                    await websocket.send_json({"type": "synthesizing"})
+                    await _send_tts_audio(websocket, response.message.content)
+                    await websocket.send_json({"type": "done"})
+                    return
+                else:
+                    await websocket.send_json({"type": "error", "message": f"Unknown command: {command_type}"})
+    except WebSocketDisconnect:
+        return
+    except HTTPException as error:
+        await websocket.send_json({"type": "error", "message": error.detail})
+    except Exception as error:
+        await websocket.send_json({"type": "error", "message": str(error)})
 
 if __name__ == "__main__":
     import uvicorn
