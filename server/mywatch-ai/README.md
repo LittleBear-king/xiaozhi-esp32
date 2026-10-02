@@ -43,6 +43,16 @@ curl -X POST http://127.0.0.1:8088/v1/transcribe \
   -F "audio=@hello.wav" -F "language=zh"
 ```
 
+语音对话接口会先识别录音，再调用 Ollama：
+
+```bash
+curl -X POST http://127.0.0.1:8088/v1/voice-chat \
+  -F "audio=@speech.wav" -F "language=zh"
+```
+
+成功后返回 `input_text`（识别结果）和 `reply_text`（模型回答）。没有检测到
+人声时返回 `422`；Ollama 不可用时返回 `502`。
+
 第一次调用会加载 ASR 模型，后续请求复用同一个模型。没有 NVIDIA GPU 时，
 可设置 `MYWATCH_ASR_DEVICE=cpu` 和 `MYWATCH_ASR_COMPUTE_TYPE=int8`。
 

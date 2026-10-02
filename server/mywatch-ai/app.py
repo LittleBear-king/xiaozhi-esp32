@@ -92,6 +92,18 @@ def _get_asr_model():
     return _asr_model
 
 
+def _transcribe_file(path: str, language: str | None) -> tuple[str, str, float]:
+    model = _get_asr_model()
+    segments, info = model.transcribe(
+        path,
+        language=language or None,
+        vad_filter=True,
+        beam_size=5,
+    )
+    text = "".join(segment.text for segment in segments).strip()
+    return text, info.language, round(info.language_probability, 4)
+
+
 def _call_ollama(request: ChatRequest) -> ChatResponse:
     model = _model_name(request.model)
     payload = json.dumps(
@@ -145,18 +157,42 @@ async def transcribe(
     with tempfile.NamedTemporaryFile(suffix=suffix) as temporary:
         temporary.write(await audio.read())
         temporary.flush()
-        model = _get_asr_model()
-        segments, info = model.transcribe(
-            temporary.name,
-            language=language or None,
-            vad_filter=True,
-            beam_size=5,
-        )
-        text = "".join(segment.text for segment in segments).strip()
+        text, detected_language, probability = _transcribe_file(temporary.name, language)
     return {
         "text": text,
-        "language": info.language,
-        "language_probability": round(info.language_probability, 4),
+        "language": detected_language,
+        "language_probability": probability,
+    }
+
+
+@app.post("/v1/voice-chat")
+async def voice_chat(
+    audio: UploadFile = File(...),
+    language: str | None = Form(default=None),
+    model: str | None = Form(default=None),
+    temperature: float = Form(default=0.7, ge=0, le=2),
+) -> dict[str, object]:
+    """Transcribe one recording and send the text to the local chat model."""
+    suffix = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
+    with tempfile.NamedTemporaryFile(suffix=suffix) as temporary:
+        temporary.write(await audio.read())
+        temporary.flush()
+        text, detected_language, probability = _transcribe_file(temporary.name, language)
+    if not text:
+        raise HTTPException(status_code=422, detail="No speech was detected in the audio")
+    chat_response = _call_ollama(
+        ChatRequest(
+            messages=[Message(role="user", content=text)],
+            model=model,
+            temperature=temperature,
+        )
+    )
+    return {
+        "input_text": text,
+        "input_language": detected_language,
+        "language_probability": probability,
+        "reply_text": chat_response.message.content,
+        "model": chat_response.model,
     }
 
 if __name__ == "__main__":
