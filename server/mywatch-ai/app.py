@@ -9,7 +9,7 @@ from threading import Lock
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from fastapi import File, UploadFile
+from fastapi import File, Form, UploadFile
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
@@ -138,7 +138,7 @@ async def upload_test(audio: UploadFile = File(...)) -> dict[str, object]:
 @app.post("/v1/transcribe")
 async def transcribe(
     audio: UploadFile = File(...),
-    language: str | None = None,
+    language: str | None = Form(default=None),
 ) -> dict[str, object]:
     """Transcribe one uploaded recording into text."""
     suffix = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
