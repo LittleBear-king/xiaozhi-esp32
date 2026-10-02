@@ -35,5 +35,16 @@ curl -X POST http://127.0.0.1:8088/v1/chat \
   -d '{"messages":[{"role":"user","content":"你好，请介绍一下自己"}]}'
 ```
 
+语音识别需要额外安装 `faster-whisper`，默认使用 RTX GPU 和 `small` 模型：
+
+```bash
+pip install -r requirements.txt
+curl -X POST http://127.0.0.1:8088/v1/transcribe \
+  -F "audio=@hello.wav" -F "language=zh"
+```
+
+第一次调用会加载 ASR 模型，后续请求复用同一个模型。没有 NVIDIA GPU 时，
+可设置 `MYWATCH_ASR_DEVICE=cpu` 和 `MYWATCH_ASR_COMPUTE_TYPE=int8`。
+
 返回内容包含 `message` 和 `model`。这个服务不依赖小智云端账号，模型和会话
 提示词由我们自己控制。

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
+from threading import Lock
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-
+from fastapi import File, UploadFile
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
@@ -29,6 +31,8 @@ class ChatResponse(BaseModel):
 
 
 app = FastAPI(title="MyWatch AI", version="0.1.0")
+_asr_model = None
+_asr_lock = Lock()
 
 
 def _ollama_url() -> str:
@@ -58,6 +62,34 @@ def _messages(messages: list[Message]) -> list[dict[str, str]]:
 def _keep_alive() -> str | int:
     value = os.getenv("MYWATCH_KEEP_ALIVE", "30m")
     return -1 if value.strip() == "-1" else value
+
+
+def _get_asr_model():
+    """Load Whisper only on the first transcription request and reuse it."""
+    global _asr_model
+    if _asr_model is not None:
+        return _asr_model
+    with _asr_lock:
+        if _asr_model is not None:
+            return _asr_model
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError as error:
+            raise HTTPException(
+                status_code=503,
+                detail="ASR is not installed; run: pip install faster-whisper",
+            ) from error
+        device = os.getenv("MYWATCH_ASR_DEVICE", "cuda")
+        compute_type = os.getenv("MYWATCH_ASR_COMPUTE_TYPE", "float16")
+        try:
+            _asr_model = WhisperModel(
+                os.getenv("MYWATCH_ASR_MODEL", "small"),
+                device=device,
+                compute_type=compute_type,
+            )
+        except Exception as error:
+            raise HTTPException(status_code=503, detail=f"ASR model could not start: {error}") from error
+    return _asr_model
 
 
 def _call_ollama(request: ChatRequest) -> ChatResponse:
@@ -93,6 +125,39 @@ def health() -> dict[str, str]:
 def chat(request: ChatRequest) -> ChatResponse:
     return _call_ollama(request)
 
+@app.post("/v1/upload-test")
+async def upload_test(audio: UploadFile = File(...)) -> dict[str, object]:
+    data = await audio.read()
+    return {
+        "filename": audio.filename,
+        "content_type": audio.content_type,
+        "size": len(data),
+    }
+
+
+@app.post("/v1/transcribe")
+async def transcribe(
+    audio: UploadFile = File(...),
+    language: str | None = None,
+) -> dict[str, object]:
+    """Transcribe one uploaded recording into text."""
+    suffix = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
+    with tempfile.NamedTemporaryFile(suffix=suffix) as temporary:
+        temporary.write(await audio.read())
+        temporary.flush()
+        model = _get_asr_model()
+        segments, info = model.transcribe(
+            temporary.name,
+            language=language or None,
+            vad_filter=True,
+            beam_size=5,
+        )
+        text = "".join(segment.text for segment in segments).strip()
+    return {
+        "text": text,
+        "language": info.language,
+        "language_probability": round(info.language_probability, 4),
+    }
 
 if __name__ == "__main__":
     import uvicorn
