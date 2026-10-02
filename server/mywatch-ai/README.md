@@ -53,6 +53,26 @@ curl -X POST http://127.0.0.1:8088/v1/voice-chat \
 成功后返回 `input_text`（识别结果）和 `reply_text`（模型回答）。没有检测到
 人声时返回 `422`；Ollama 不可用时返回 `502`。
 
+## TTS 语音合成
+
+TTS 使用本地 Piper。先安装 Piper，并下载一个中文 `.onnx` 语音模型，然后设置：
+
+```bash
+export MYWATCH_TTS_BIN=piper
+export MYWATCH_TTS_MODEL=/绝对路径/中文语音模型.onnx
+```
+
+直接测试文字转语音：
+
+```bash
+curl -X POST http://127.0.0.1:8088/v1/synthesize \
+  -F "text=你好，我是 MyWatch"
+```
+
+`/v1/synthesize` 和默认的 `/v1/voice-chat` 返回 `audio_base64`，解码后是 WAV
+音频。暂时只测试 ASR 或聊天时，可在语音对话请求中加入
+`-F "include_audio=false"`。
+
 第一次调用会加载 ASR 模型，后续请求复用同一个模型。没有 NVIDIA GPU 时，
 可设置 `MYWATCH_ASR_DEVICE=cpu` 和 `MYWATCH_ASR_COMPUTE_TYPE=int8`。
 

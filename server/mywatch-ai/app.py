@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import base64
+import subprocess
 import tempfile
 from threading import Lock
 from typing import Any
@@ -104,6 +106,42 @@ def _transcribe_file(path: str, language: str | None) -> tuple[str, str, float]:
     return text, info.language, round(info.language_probability, 4)
 
 
+def _synthesize_text(text: str) -> bytes:
+    """Synthesize text with the configured Piper voice and return WAV bytes."""
+    model = os.getenv("MYWATCH_TTS_MODEL")
+    if not model:
+        raise HTTPException(
+            status_code=503,
+            detail="TTS is not configured; set MYWATCH_TTS_MODEL to a Piper .onnx model",
+        )
+    piper = os.getenv("MYWATCH_TTS_BIN", "piper")
+    if not os.path.isfile(model):
+        raise HTTPException(status_code=503, detail=f"TTS model not found: {model}")
+    with tempfile.TemporaryDirectory() as directory:
+        output = os.path.join(directory, "speech.wav")
+        try:
+            subprocess.run(
+                [piper, "--model", model, "--output_file", output],
+                input=text,
+                text=True,
+                capture_output=True,
+                check=True,
+                timeout=60,
+            )
+        except FileNotFoundError as error:
+            raise HTTPException(status_code=503, detail=f"Piper executable not found: {piper}") from error
+        except subprocess.TimeoutExpired as error:
+            raise HTTPException(status_code=504, detail="TTS synthesis timed out") from error
+        except subprocess.CalledProcessError as error:
+            detail = (error.stderr or error.stdout or "unknown Piper error").strip()
+            raise HTTPException(status_code=502, detail=f"TTS synthesis failed: {detail}") from error
+        try:
+            with open(output, "rb") as audio_file:
+                return audio_file.read()
+        except OSError as error:
+            raise HTTPException(status_code=502, detail="Piper did not produce an audio file") from error
+
+
 def _call_ollama(request: ChatRequest) -> ChatResponse:
     model = _model_name(request.model)
     payload = json.dumps(
@@ -171,6 +209,7 @@ async def voice_chat(
     language: str | None = Form(default=None),
     model: str | None = Form(default=None),
     temperature: float = Form(default=0.7, ge=0, le=2),
+    include_audio: bool = Form(default=True),
 ) -> dict[str, object]:
     """Transcribe one recording and send the text to the local chat model."""
     suffix = os.path.splitext(audio.filename or "audio.wav")[1] or ".wav"
@@ -187,12 +226,27 @@ async def voice_chat(
             temperature=temperature,
         )
     )
-    return {
+    result: dict[str, object] = {
         "input_text": text,
         "input_language": detected_language,
         "language_probability": probability,
         "reply_text": chat_response.message.content,
         "model": chat_response.model,
+    }
+    if include_audio:
+        audio = _synthesize_text(chat_response.message.content)
+        result["audio_format"] = "wav"
+        result["audio_base64"] = base64.b64encode(audio).decode("ascii")
+    return result
+
+
+@app.post("/v1/synthesize")
+async def synthesize(text: str = Form(..., min_length=1, max_length=2000)) -> dict[str, object]:
+    """Convert text to a WAV payload using Piper."""
+    audio = _synthesize_text(text.strip())
+    return {
+        "audio_format": "wav",
+        "audio_base64": base64.b64encode(audio).decode("ascii"),
     }
 
 if __name__ == "__main__":
